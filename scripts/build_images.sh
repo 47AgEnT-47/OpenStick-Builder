@@ -33,6 +33,10 @@ resize2fs -M rootfs.raw
 e2fsck -f boot.raw
 resize2fs -M boot.raw
 
+# show final sizes
+echo "Final sizes after resize:"
+ls -lh rootfs.raw boot.raw
+
 # create sparse android images
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
