@@ -22,6 +22,11 @@ tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='.
 # install gt
 cp -a dist/* mnt
 
+chroot mnt apt purge -y build-essential libconfig-dev libc6-dev linux-libc-dev 
+chroot mnt apt autoremove -y
+chroot mnt apt clean
+rm -rf mnt/usr/include mnt/usr/lib/aarch64-linux-gnu/pkgconfig mnt/usr/lib/*.a mnt/usr/share/doc mnt/usr/share/man mnt/var/lib/apt/lists/*
+
 umount mnt
 
 # create sparse android images 
