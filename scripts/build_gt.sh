@@ -39,3 +39,25 @@ rm -rf dist/usr/share dist/usr/lib/cmake dist/usr/lib/pkgconfig \
     dist/usr/lib/*a dist/usr/bin/ga* dist/usr/bin/s* dist/usr/include
 
 cp -a configs/templates dist/etc/gt
+
+# Монтируем файловые системы для работы chroot
+mount -t proc proc ${CHROOT}/proc/
+mount -t sysfs sys ${CHROOT}/sys/
+mount -o bind /dev/ ${CHROOT}/dev/
+
+# Удаляем dev-пакеты
+chroot ${CHROOT} apt purge -y \
+    build-essential \
+    libconfig-dev \
+    libc6-dev \
+    linux-libc-dev
+
+# Очищаем зависимости и кэш
+chroot ${CHROOT} apt autoremove -y
+chroot ${CHROOT} apt clean
+
+# Размонтируем
+umount ${CHROOT}/proc ${CHROOT}/sys ${CHROOT}/dev
+
+# Создаём чистый rootfs.tgz для последующей сборки образов
+tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
