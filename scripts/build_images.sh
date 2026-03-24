@@ -23,6 +23,7 @@ tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='.
 cp -a dist/* mnt
 
 # mount /dev/pts for apt
+mkdir -p mnt/dev/pts
 mount -o bind /dev/pts mnt/dev/pts
 
 chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev 
