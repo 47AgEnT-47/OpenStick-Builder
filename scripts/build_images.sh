@@ -25,9 +25,9 @@ cp -a dist/* mnt
 # mount /dev/pts for apt
 mount -o bind /dev/pts mnt/dev/pts
 
-chroot mnt apt purge -y build-essential libconfig-dev libc6-dev linux-libc-dev 
-chroot mnt apt autoremove -y
-chroot mnt apt clean
+chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev 
+chroot mnt apt-get autoremove -y
+chroot mnt apt-get clean
 rm -rf mnt/usr/include mnt/usr/lib/aarch64-linux-gnu/pkgconfig mnt/usr/lib/*.a mnt/usr/share/doc mnt/usr/share/man mnt/var/lib/apt/lists/*
 
 umount mnt/dev/pts
