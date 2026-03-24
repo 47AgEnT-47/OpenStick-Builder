@@ -22,17 +22,21 @@ tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='.
 # install gt
 cp -a dist/* mnt
 
+# mount /dev/pts for apt
+mount -o bind /dev/pts mnt/dev/pts
+
 chroot mnt apt purge -y build-essential libconfig-dev libc6-dev linux-libc-dev 
 chroot mnt apt autoremove -y
 chroot mnt apt clean
 rm -rf mnt/usr/include mnt/usr/lib/aarch64-linux-gnu/pkgconfig mnt/usr/lib/*.a mnt/usr/share/doc mnt/usr/share/man mnt/var/lib/apt/lists/*
 
+umount mnt/dev/pts
 umount mnt
 
-# resize to minimum
-e2fsck -f rootfs.raw
+# resize to minimum with automatic yes
+e2fsck -f -y rootfs.raw
 resize2fs -M rootfs.raw
-e2fsck -f boot.raw
+e2fsck -f -y boot.raw
 resize2fs -M boot.raw
 
 # show final sizes
