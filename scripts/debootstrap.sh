@@ -109,5 +109,3 @@ mkdir -p ${CHROOT}/lib/firmware/msm-firmware-loader
 # update fstab
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > ${CHROOT}/etc/fstab
 
-# backup rootfs
-tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
