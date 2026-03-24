@@ -7,13 +7,15 @@ rm -f rootfs.raw boot.raw
 mkdir -p files mnt
 
 # create boot
-mkfs.ext2 boot.raw
+dd if=/dev/zero of=boot.raw bs=1M count=64 status=none
+mkfs.ext2 -F boot.raw
 mount boot.raw mnt
 tar xf rootfs.tgz -C mnt ./boot --exclude='./boot/linux.efi' --strip-components=2
 umount mnt
 
 # create root img
-mkfs.ext4 rootfs.raw
+dd if=/dev/zero of=rootfs.raw bs=1M count=1536 status=none
+mkfs.ext4 -F rootfs.raw
 mount rootfs.raw mnt
 tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
 
