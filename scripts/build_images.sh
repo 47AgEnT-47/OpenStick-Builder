@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 
 CHROOT=${CHROOT=$(pwd)/rootfs}
 export DEBIAN_FRONTEND=noninteractive
@@ -30,11 +30,15 @@ mount -t sysfs /sys mnt/sys
 mount -o bind /dev mnt/dev
 mount -o bind /dev/pts mnt/dev/pts
 
-# 1. Агрессивная чистка пакетов (удаляем Python, если он не нужен для вашего софта)
-# Если ваш софт на Python — удалите "python3*" из списка ниже.
-chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
-    python* perl-modules* vim gdb git bash-completion \
-    libx11-6 libgtk* libqt* # Удаление остатков графики
+# 1. Удаляем только то, что реально установлено в системе
+# Ищем пакеты по маскам и удаляем их скопом
+INSTALLED_PURGE=$(chroot mnt dpkg-query -W -f='${Package}\n' \
+    "python3*" "python-*" "perl*" "libpython*" "libperl*" "vim*" "nano*" "gdb*" "git*" "gcc*" "g++*" "make*" "build-essential" \
+    2>/dev/null || true)
+
+if [ -n "$INSTALLED_PURGE" ]; then
+    chroot mnt apt-get purge -y $INSTALLED_PURGE
+fi
 
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
