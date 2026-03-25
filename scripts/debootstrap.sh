@@ -101,6 +101,7 @@ mkdir -p ${CHROOT}/boot/extlinux
 cp configs/extlinux.conf ${CHROOT}/boot/extlinux
 
 # copy custom dtb's
+rm -rf ${CHROOT}/boot/dtbs/qcom/*
 cp dtbs/* ${CHROOT}/boot/dtbs/qcom/
 
 # create missing directory
