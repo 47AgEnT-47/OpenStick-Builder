@@ -29,7 +29,7 @@ mount -o bind /dev/pts mnt/dev/pts
 
 # --- 3. УДАЛЕНИЕ ВРЕМЕННОГО СОФТА (Оставляем APT и сервисы) ---
 # Удаляем компиляторы и dev-пакеты, которые были нужны только для сборки
-EXTRA_PURGE="build-essential gcc-14* g++-14* cpp-14* binutils* libc6-dev linux-libc-dev libconfig-dev make patch gdb git"
+EXTRA_PURGE="build-essential gcc-14* g++-14* cpp-14* binutils* libc6-dev* linux-libc-dev* libconfig-dev* make* patch* gdb* git* python3* libpython3*"
 INSTALLED_PURGE=$(chroot mnt dpkg-query -W -f='${db:Status-Status} ${Package}\n' $EXTRA_PURGE 2>/dev/null | awk '$1=="installed" {print $2}')
 
 if [ -n "$INSTALLED_PURGE" ]; then
