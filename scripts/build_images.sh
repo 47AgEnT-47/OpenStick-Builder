@@ -30,7 +30,8 @@ mount -t sysfs /sys mnt/sys
 mount -o bind /dev mnt/dev
 mount -o bind /dev/pts mnt/dev/pts
 
-cp /etc/resolv.conf mnt/etc/resolv.conf
+rm -f mnt/etc/resolv.conf
+cat /etc/resolv.conf > mnt/etc/resolv.conf
 
 # 1. Обновляем списки (нужно для корректного purge)
 chroot mnt apt-get update
