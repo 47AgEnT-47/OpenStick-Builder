@@ -37,7 +37,7 @@ chroot mnt apt-get update
 
 # Ищем ТОЛЬКО реально установленные пакеты (статус 'ii')
 INSTALLED_PURGE=$(chroot mnt dpkg-query -W -f='${db:Status-Status} ${Package}\n' \
-    "python3*" "python-*" "perl*" "libpython*" "libperl*" "vim*" "nano*" "gdb*" "git*" "gcc*" "g++*" "make*" "build-essential" 2>/dev/null \ 
+    "python3*" "python-*" "perl*" "libpython*" "libperl*" "vim*" "nano*" "gdb*" "git*" "gcc*" "g++*" "make*" "build-essential" 2>/dev/null \
     | grep '^installed' | awk '{print $2}')
 
 if [ -n "$INSTALLED_PURGE" ]; then
