@@ -11,6 +11,7 @@ mkdir -p files mnt
 dd if=/dev/zero of=boot.raw bs=1M count=64 status=none
 mkfs.ext2 -F boot.raw
 mount boot.raw mnt
+# Копируем только ядро и конфиг, остальное (dtb/initrd) по ситуации
 tar xf rootfs.tgz -C mnt ./boot --exclude='./boot/linux.efi' --strip-components=2
 umount mnt
 
@@ -19,45 +20,79 @@ dd if=/dev/zero of=rootfs.raw bs=1M count=1536 status=none
 mkfs.ext4 -F rootfs.raw
 mount rootfs.raw mnt
 
-# Распаковка (исключаем лишнее сразу)
-tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
+# Распаковка (исключаем тяжелые каталоги сразу при распаковке)
+tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*' \
+    --exclude='./usr/share/doc' --exclude='./usr/share/man' --exclude='./usr/share/locale'
 
-# Установка ваших файлов
-cp -a dist/* mnt
-
-# Монтирование системных директорий для работы apt
-mkdir -p mnt/dev/pts mnt/proc
+# Монтирование для работы chroot
 mount -t proc /proc mnt/proc
+mount -t sysfs /sys mnt/sys
+mount -o bind /dev mnt/dev
 mount -o bind /dev/pts mnt/dev/pts
 
-# Очистка пакетов
-chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make
+# 1. Агрессивная чистка пакетов (удаляем Python, если он не нужен для вашего софта)
+# Если ваш софт на Python — удалите "python3*" из списка ниже.
+chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
+    python* perl-modules* vim gdb git bash-completion \
+    libx11-6 libgtk* libqt* # Удаление остатков графики
+
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
 
-# Глубокая ручная очистка (док, локали, кэши)
+# 2. Чистка модулей ядра (оставляем только сеть и ext4)
+# Удаляем звук, видео, джойстики, лишние ФС
+KVER=$(ls mnt/lib/modules | head -n 1)
+KDIR="mnt/lib/modules/$KVER/kernel"
+if [ -d "$KDIR" ]; then
+    rm -rf "$KDIR/drivers/media" "$KDIR/drivers/gpu" "$KDIR/drivers/sound" \
+           "$KDIR/drivers/hid" "$KDIR/drivers/iio" "$KDIR/drivers/input/joystick" \
+           "$KDIR/drivers/input/tablet" "$KDIR/drivers/nfc" "$KDIR/drivers/bluetooth" \
+           "$KDIR/sound" "$KDIR/net/bluetooth" "$KDIR/net/nfc"
+    
+    # Оставляем только нужные ФС (ext2/4)
+    find "$KDIR/fs" -mindepth 1 -maxdepth 1 -not -name "ext*" -not -name "fat" -not -name "vfat" -not -name "nls" -exec rm -rf {} +
+fi
+
+# 3. Глубокая ручная очистка файловой системы
 rm -rf mnt/usr/include \
-       mnt/usr/share/doc/* \
-       mnt/usr/share/man/* \
        mnt/usr/share/info/* \
-       mnt/usr/share/locale/* \
+       mnt/usr/share/bash-completion \
+       mnt/usr/share/zsh \
+       mnt/usr/share/fish \
+       mnt/usr/share/terminfo/* \
+       mnt/usr/share/i18n \
+       mnt/usr/share/zoneinfo/* \
        mnt/var/lib/apt/lists/* \
        mnt/var/cache/apt/archives/* \
        mnt/var/log/* \
        mnt/root/.cache \
-       mnt/tmp/*
+       mnt/tmp/* \
+       mnt/usr/share/icons \
+       mnt/usr/share/pixmaps
 
-# Удаление статических библиотек и специфических путей
-find mnt/usr/lib -name "*.a" -delete
-find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
+# Оставляем только базовый термinfo (linux и xterm)
+mkdir -p mnt/usr/share/terminfo/l mnt/usr/share/terminfo/x
+# (команды копирования нужных terminfo если нужно, иначе SSH может ругаться на backspace)
 
-# Размонтирование в обратном порядке
+# 4. Бинарная оптимизация (STRIP) - ОЧЕНЬ ВАЖНО
+# Удаляет отладочные символы, уменьшает бинарники в разы
+find mnt/lib/modules -name "*.ko" -exec strip --strip-debug {} + 2>/dev/null || true
+
+# 5. Очистка базы данных пакетов (оставляем статус для работы apt, но удаляем инфо о файлах)
+rm -rf mnt/var/lib/dpkg/info/*.md5sums
+rm -rf mnt/var/lib/dpkg/info/*.list
+
+# Установка ваших файлов (в самом конце, чтобы не затерло)
+cp -a dist/* mnt/
+
+# Размонтирование
 umount mnt/dev/pts
+umount mnt/dev
+umount mnt/sys
 umount mnt/proc
 umount mnt
 
-# --- Оптимизация и сжатие ---
-# Функция для обрезки файла до реального размера ФС
+# Оптимизация размера образа
 shrink_raw() {
     FILE=$1
     e2fsck -f -y "$FILE"
@@ -70,12 +105,10 @@ shrink_raw() {
 shrink_raw rootfs.raw
 shrink_raw boot.raw
 
-# Вывод размеров
-echo "Final sizes after resize:"
+echo "Final sizes:"
 ls -lh rootfs.raw boot.raw
 
-# Создание разреженных образов (Android Sparse)
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
 
-echo "Done! Images are in 'files/' directory."
+echo "Done!"
