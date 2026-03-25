@@ -1,49 +1,81 @@
 #!/bin/sh -e
 
 CHROOT=${CHROOT=$(pwd)/rootfs}
+export DEBIAN_FRONTEND=noninteractive
 
-# package rootfs
+# Подготовка папок
 rm -f rootfs.raw boot.raw
 mkdir -p files mnt
 
-# create boot
+# --- Сборка BOOT ---
 dd if=/dev/zero of=boot.raw bs=1M count=64 status=none
 mkfs.ext2 -F boot.raw
 mount boot.raw mnt
 tar xf rootfs.tgz -C mnt ./boot --exclude='./boot/linux.efi' --strip-components=2
 umount mnt
 
-# create root img
+# --- Сборка ROOTFS ---
 dd if=/dev/zero of=rootfs.raw bs=1M count=1536 status=none
 mkfs.ext4 -F rootfs.raw
 mount rootfs.raw mnt
+
+# Распаковка (исключаем лишнее сразу)
 tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
 
-# install gt
+# Установка ваших файлов
 cp -a dist/* mnt
 
-# mount /dev/pts for apt
-mkdir -p mnt/dev/pts
+# Монтирование системных директорий для работы apt
+mkdir -p mnt/dev/pts mnt/proc
+mount -t proc /proc mnt/proc
 mount -o bind /dev/pts mnt/dev/pts
 
-chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev 
-chroot mnt apt-get autoremove --purge -y
+# Очистка пакетов
+chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make
+chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
-rm -rf mnt/usr/include mnt/usr/lib/aarch64-linux-gnu/pkgconfig mnt/usr/lib/*.a mnt/usr/share/doc mnt/usr/share/man mnt/var/lib/apt/lists/*
 
+# Глубокая ручная очистка (док, локали, кэши)
+rm -rf mnt/usr/include \
+       mnt/usr/share/doc/* \
+       mnt/usr/share/man/* \
+       mnt/usr/share/info/* \
+       mnt/usr/share/locale/* \
+       mnt/var/lib/apt/lists/* \
+       mnt/var/cache/apt/archives/* \
+       mnt/var/log/* \
+       mnt/root/.cache \
+       mnt/tmp/*
+
+# Удаление статических библиотек и специфических путей
+find mnt/usr/lib -name "*.a" -delete
+find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
+
+# Размонтирование в обратном порядке
 umount mnt/dev/pts
+umount mnt/proc
 umount mnt
 
-# resize to minimum with automatic yes
-e2fsck -f -y rootfs.raw
-resize2fs -M rootfs.raw
-e2fsck -f -y boot.raw
-resize2fs -M boot.raw
+# --- Оптимизация и сжатие ---
+# Функция для обрезки файла до реального размера ФС
+shrink_raw() {
+    FILE=$1
+    e2fsck -f -y "$FILE"
+    resize2fs -M "$FILE"
+    BLOCK_COUNT=$(dumpe2fs -h "$FILE" | grep "Block count" | awk '{print $3}')
+    BLOCK_SIZE=$(dumpe2fs -h "$FILE" | grep "Block size" | awk '{print $3}')
+    truncate -s $((BLOCK_COUNT * BLOCK_SIZE)) "$FILE"
+}
 
-# show final sizes
+shrink_raw rootfs.raw
+shrink_raw boot.raw
+
+# Вывод размеров
 echo "Final sizes after resize:"
 ls -lh rootfs.raw boot.raw
 
-# create sparse android images
+# Создание разреженных образов (Android Sparse)
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
+
+echo "Done! Images are in 'files/' directory."
