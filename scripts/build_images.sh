@@ -33,19 +33,25 @@ mount -o bind /dev/pts mnt/dev/pts
 rm -f mnt/etc/resolv.conf
 cat /etc/resolv.conf > mnt/etc/resolv.conf
 
-# 1. Обновляем списки (нужно для корректного purge)
-chroot mnt apt-get update
-
-# Ищем ТОЛЬКО реально установленные пакеты (статус 'ii')
+# 1. Жесткая очистка без проверки зависимостей (dpkg не лезет в интернет)
+# Собираем список установленных пакетов по маскам
 INSTALLED_PURGE=$(chroot mnt dpkg-query -W -f='${db:Status-Status} ${Package}\n' \
     "python3*" "python-*" "perl*" "libpython*" "libperl*" "vim*" "nano*" "gdb*" "git*" "gcc*" "g++*" "make*" "build-essential" 2>/dev/null \
-    | grep '^installed' | awk '{print $2}')
 
-if [ -n "$INSTALLED_PURGE" ]; then
-    # Используем --allow-remove-essential на случай, если perl/python зашиты глубоко (осторожно!)
-    chroot mnt apt-get purge -y $INSTALLED_PURGE
+    | awk '$1=="installed" {print $2}')
+
+# Исключаем критически важные пакеты, чтобы система вообще могла дышать (библиотеки gcc и база)
+SAFE_LIST=$(echo "$INSTALLED_PURGE" | grep -vE "gcc-[0-9]+-base|libgcc-s1|libstdc\+\+|apt|dpkg")
+
+if [ -n "$SAFE_LIST" ]; then
+    echo "Force removing: $SAFE_LIST"
+    # --force-depends позволяет удалить пакет, даже если он кому-то нужен
+    chroot mnt dpkg --purge --force-depends $SAFE_LIST
 fi
 
+# Чистим кэши, которые могли остаться в оригинальном rootfs.tgz
+rm -rf mnt/var/lib/apt/lists/*
+rm -rf mnt/var/cache/apt/archives/*
 
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
