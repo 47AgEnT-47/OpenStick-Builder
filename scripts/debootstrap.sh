@@ -8,8 +8,8 @@ rm -rf ${CHROOT}
 
 # Use mmdebstrap for faster builds (god, it's so much faster)
 echo "Using mmdebstrap for fast bootstrap..."
-mmdebstrap --arch=arm64 \
-    --include=systemd,udev,dbus,apt,wget,ca-certificates \
+mmdebstrap --arch=arm64 --variant=minbase \
+    --include=systemd,udev,dbus,apt,wget,ca-certificates, iproute2 \
     --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
     ${RELEASE} ${CHROOT}
 
