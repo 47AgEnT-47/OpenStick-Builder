@@ -30,26 +30,37 @@ mkdir -p mnt/dev/pts mnt/proc
 mount -t proc /proc mnt/proc
 mount -o bind /dev/pts mnt/dev/pts
 
-# Очистка пакетов
-chroot mnt apt-get purge -y build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make
+# --- Очистка пакетов (МАКСИМАЛЬНАЯ ЖАДНОСТЬ) ---
+# Удаляем компиляторы, лишние языки, локали и мусорные утилиты
+chroot mnt apt-get purge -y \
+    build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
+    perl perl-modules-5.40 libperl5.40 \
+    locales libc-l10n debconf-i18n \
+    vim-common vim-tiny
+
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
 
-# Глубокая ручная очистка (док, локали, кэши)
-rm -rf mnt/usr/include \
+# --- Глубокая ручная очистка (док, локали, кэши) ---
+rm -rf mnt/usr/include/* \
        mnt/usr/share/doc/* \
        mnt/usr/share/man/* \
        mnt/usr/share/info/* \
        mnt/usr/share/locale/* \
+       mnt/usr/share/common-licenses/* \
        mnt/var/lib/apt/lists/* \
        mnt/var/cache/apt/archives/* \
        mnt/var/log/* \
        mnt/root/.cache \
-       mnt/tmp/*
+       mnt/tmp/* \
+       mnt/var/tmp/*
 
 # Удаление статических библиотек и специфических путей
 find mnt/usr/lib -name "*.a" -delete
 find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
+
+# Принудительная установка локали C (чтобы не было ошибок в консоли)
+echo 'export LC_ALL=C' >> mnt/etc/profile
 
 # Размонтирование в обратном порядке
 umount mnt/dev/pts
@@ -57,7 +68,6 @@ umount mnt/proc
 umount mnt
 
 # --- Оптимизация и сжатие ---
-# Функция для обрезки файла до реального размера ФС
 shrink_raw() {
     FILE=$1
     e2fsck -f -y "$FILE"
