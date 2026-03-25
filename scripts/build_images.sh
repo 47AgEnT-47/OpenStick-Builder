@@ -78,6 +78,12 @@ mkdir -p mnt/usr/share/terminfo/l mnt/usr/share/terminfo/x
 # Удаляет отладочные символы, уменьшает бинарники в разы
 find mnt/lib/modules -name "*.ko" -exec strip --strip-debug {} + 2>/dev/null || true
 
+# Финальный стрип всего живого (бинарники, библиотеки, модули ядра)
+# Это безопасно для работы, но невозможно для отладки (debug)
+find mnt/usr/bin mnt/usr/sbin mnt/usr/lib mnt/lib mnt/bin mnt/sbin \
+     -type f -exec strip --strip-all {} + 2>/dev/null || true
+
+
 # 5. Очистка базы данных пакетов (оставляем статус для работы apt, но удаляем инфо о файлах)
 rm -rf mnt/var/lib/dpkg/info/*.md5sums
 rm -rf mnt/var/lib/dpkg/info/*.list
