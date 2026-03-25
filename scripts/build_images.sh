@@ -39,14 +39,14 @@ INSTALLED_PURGE=$(chroot mnt dpkg-query -W -f='${db:Status-Status} ${Package}\n'
     "python3*" "python-*" "perl*" "libpython*" "libperl*" "vim*" "nano*" "gdb*" "git*" "gcc*" "g++*" "make*" "build-essential" 2>/dev/null \
     | awk '$1=="installed" {print $2}')
 
-# Исключаем критически важные пакеты, чтобы система вообще могла дышать (библиотеки gcc и база)
-SAFE_LIST=$(echo "$INSTALLED_PURGE" | grep -vE "gcc-[0-9]+-base|libgcc-s1|libstdc\+\+|apt|dpkg")
+# Исключаем perl-base и важные либы из расстрельного списка
+SAFE_LIST=$(echo "$INSTALLED_PURGE" | grep -vE "perl-base|gcc-[0-9]+-base|libgcc-s1|libstdc\+\+|apt|dpkg|libperl")
 
 if [ -n "$SAFE_LIST" ]; then
-    echo "Force removing: $SAFE_LIST"
-    # --force-depends позволяет удалить пакет, даже если он кому-то нужен
-    chroot mnt dpkg --purge --force-depends --force-remove-essential $SAFE_LIST || true
+    chroot mnt dpkg --purge --force-depends $SAFE_LIST || true
 fi
+# Исправляем зависимости, чтобы apt не ругался при запуске в системе
+chroot mnt apt-get install -f -y || true
 
 # Чистим кэши, которые могли остаться в оригинальном rootfs.tgz
 rm -rf mnt/var/lib/apt/lists/*
