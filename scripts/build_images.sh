@@ -45,7 +45,7 @@ SAFE_LIST=$(echo "$INSTALLED_PURGE" | grep -vE "gcc-[0-9]+-base|libgcc-s1|libstd
 if [ -n "$SAFE_LIST" ]; then
     echo "Force removing: $SAFE_LIST"
     # --force-depends позволяет удалить пакет, даже если он кому-то нужен
-    chroot mnt dpkg --purge --force-depends --force-remove-essential $SAFE_LIST
+    chroot mnt dpkg --purge --force-depends --force-remove-essential $SAFE_LIST || true
 fi
 
 # Чистим кэши, которые могли остаться в оригинальном rootfs.tgz
