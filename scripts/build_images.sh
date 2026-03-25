@@ -37,7 +37,6 @@ cat /etc/resolv.conf > mnt/etc/resolv.conf
 # Собираем список установленных пакетов по маскам
 INSTALLED_PURGE=$(chroot mnt dpkg-query -W -f='${db:Status-Status} ${Package}\n' \
     "python3*" "python-*" "perl*" "libpython*" "libperl*" "vim*" "nano*" "gdb*" "git*" "gcc*" "g++*" "make*" "build-essential" 2>/dev/null \
-
     | awk '$1=="installed" {print $2}')
 
 # Исключаем критически важные пакеты, чтобы система вообще могла дышать (библиотеки gcc и база)
