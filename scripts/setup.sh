@@ -109,7 +109,12 @@ systemctl enable rmtfs # unsure if needed i forgot why i added it. But builds ta
 
 systemctl disable systemd-networkd
 systemctl disable wpa_supplicant
-nmcli device set wlan0 managed no
+
+cat <<EOF > /etc/NetworkManager/conf.d/99-unmanaged-devices.conf
+[keyfile]
+unmanaged-devices=interface-name:wlan0
+EOF
+
 # Time
 systemctl enable systemd-timesyncd
 
