@@ -14,9 +14,9 @@ mmdebstrap --arch=arm64 \
 
 # Настройка репозиториев (один блок вместо трех)
 cat << EOF > "${CHROOT}/etc/apt/sources.list"
-deb http://deb.debian.org ${RELEASE} main contrib non-free-firmware
-deb http://deb.debian.org-security/ ${RELEASE}-security main contrib non-free-firmware
-deb http://deb.debian.org ${RELEASE}-updates main contrib non-free-firmware
+deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
+deb http://deb.debian.org/debian-security ${RELEASE}-security main contrib non-free-firmware
+deb http://deb.debian.org/debian ${RELEASE}-updates main contrib non-free-firmware
 EOF
 
 # Оптимизация APT
