@@ -98,11 +98,6 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 systemctl mask systemd-networkd
 systemctl mask wpa_supplicant
 
-cat <<EOF > /etc/NetworkManager/conf.d/99-unmanaged-devices.conf
-[keyfile]
-unmanaged-devices=interface-name:wlan0
-EOF
-
 # Ensure DHCP/DNS for USB and WIFI is active (for clients on br0)
 systemctl enable dnsmasq
 
