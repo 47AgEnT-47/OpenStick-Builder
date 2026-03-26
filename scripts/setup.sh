@@ -33,7 +33,7 @@ apt autoremove -qqy
 apt clean
 rm -rf /var/lib/apt/lists/*
 rm -f /etc/machine-id
-₽rm -f /var/lib/dbus/machine-id
+#rm -f /var/lib/dbus/machine-id
 #rm /etc/ssh/ssh_host_*
 find /var/log -type f -delete
 
