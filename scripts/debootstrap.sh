@@ -108,7 +108,7 @@ cp dtbs/* ${CHROOT}/boot/dtbs/qcom/
 mkdir -p ${CHROOT}/lib/firmware/msm-firmware-loader
 
 # update fstab
-echo "PARTUUID=a7ab80e8-e9d1-e8cd-f157-93f69b1d141e\t/boot\text2\tdefaults\t0 2" > ${CHROOT}/etc/fstab
+echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > ${CHROOT}/etc/fstab
 
 # backup rootfs
 tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
