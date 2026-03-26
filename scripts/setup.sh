@@ -119,20 +119,40 @@ systemctl mask systemd-networkd-wait-online.service
 # Prevent the accidental shutdown by power button
 sed -i 's/^#HandlePowerKey=poweroff/HandlePowerKey=ignore/' /etc/systemd/logind.conf
 
-# Enable IPv4 and IPv6 forwarding
+## Enable IPv4 forwarding and DISABLE IPv6
 if [ -f /etc/sysctl.conf ]; then
-    # Uncomment existing lines if they exist
-    sed -i -e 's/^#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' -e 's/^#net.ipv6.conf.all.forwarding=1/net.ipv6.conf.all.forwarding=1/' /etc/sysctl.conf
-    # Add the lines if they don't exist at all
+    # Включаем только IPv4 форвардинг
+    sed -i 's/^#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
     grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
-    grep -q '^net.ipv6.conf.all.forwarding' /etc/sysctl.conf || echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
+    
+    # Полностью отключаем IPv6 во всем ядре
+    echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+    echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+    echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
 else
-    # Create the file with the required settings
     cat <<EOF > /etc/sysctl.conf
-# Enable IPv4 forwarding
 net.ipv4.ip_forward=1
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6=1
+EOF
+fi
 
-# Enable IPv6 forwarding
-net.ipv6.conf.all.forwarding=1
+# Enable IPv4 forwarding and DISABLE IPv6
+if [ -f /etc/sysctl.conf ]; then
+    # Включаем только IPv4 форвардинг
+    sed -i 's/^#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
+    grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    
+    # Полностью отключаем IPv6 во всем ядре
+    echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+    echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+    echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
+else
+    cat <<EOF > /etc/sysctl.conf
+net.ipv4.ip_forward=1
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6=1
 EOF
 fi
