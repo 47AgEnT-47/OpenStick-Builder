@@ -107,6 +107,9 @@ systemctl enable hostapd
 systemctl enable ModemManager
 systemctl enable rmtfs # unsure if needed i forgot why i added it. But builds take a long time so i don't want to remove it now
 
+systemctl disable systemd-networkd
+systemctl disable wpa_supplicant
+nmcli device set wlan0 managed no
 # Time
 systemctl enable systemd-timesyncd
 
