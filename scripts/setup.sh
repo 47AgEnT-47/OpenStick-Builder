@@ -24,18 +24,35 @@ apt install -qqy --no-install-recommends \
     libc6-dev \
     linux-libc-dev \
     locales \
+    modemmanager \
     netcat-traditional \
+    network-manager \
+    openssh-server \
+    qrtr-tools \
+    rmtfs \
     sudo \
     systemd-timesyncd \
-    curl
+    tzdata \
+    wireguard-tools \
+    wpasupplicant \
+    bash-completion \
+    curl \
+    ca-certificates \
+    zram-tools \
+    bc \
+    nftables \
+    mobile-broadband-provider-info \
+    iw \
+    rfkill \
+    hostapd
 
 # Cleanup in one go
 apt autoremove -qqy
 apt clean
 rm -rf /var/lib/apt/lists/*
 rm -f /etc/machine-id
-#rm -f /var/lib/dbus/machine-id
-#rm /etc/ssh/ssh_host_*
+rm -f /var/lib/dbus/machine-id
+rm /etc/ssh/ssh_host_*
 find /var/log -type f -delete
 
 passwd -dl root
@@ -73,26 +90,26 @@ EOF
 bash /install_dnsproxy.sh systemd
 
 # Ensure NetworkManager and systemd-resolved are enabled and managing DNS (offline enable inside chroot)
-#systemctl enable NetworkManager || true
-#systemctl enable systemd-resolved || true
-#ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+systemctl enable NetworkManager || true
+systemctl enable systemd-resolved || true
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 
 systemctl mask systemd-networkd
-#systemctl mask wpa_supplicant
+systemctl mask wpa_supplicant
 
 # Ensure DHCP/DNS for USB and WIFI is active (for clients on br0)
-#systemctl enable dnsmasq
+systemctl enable dnsmasq
 
 # Enable nftables
-#systemctl enable nftables
+systemctl enable nftables
 
 # Enable hostapd for WiFi AP
-#systemctl enable hostapd
+systemctl enable hostapd
 
 # Make sure ModemManager is enabled for LTE
-#systemctl enable ModemManager
-#systemctl enable rmtfs # unsure if needed i forgot why i added it. But builds take a long time so i don't want to remove it now
+systemctl enable ModemManager
+systemctl enable rmtfs # unsure if needed i forgot why i added it. But builds take a long time so i don't want to remove it now
 
 # Time
 systemctl enable systemd-timesyncd
