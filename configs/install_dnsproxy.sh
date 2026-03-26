@@ -4,10 +4,9 @@
 REPO_OWNER="AdguardTeam"
 REPO_NAME="dnsproxy"
 
-ARGS="--listen 0.0.0.0 --listen :: --port 5353 \
-    --bootstrap 8.8.8.8 --bootstrap 2606:4700:4700::1111 \
-    --fallback 9.9.9.9 --fallback 2620:fe::9 \
-    --upstream [/www.googleadservices.com/]8.8.8.8 --upstream [/ad.doubleclick.net/]8.8.8.8 \
+ARGS="--listen 0.0.0.0 --port 5353 \
+    --bootstrap 8.8.8.8 \
+    --fallback 9.9.9.9 \
     --upstream https://dns.adguard.com/dns-query --upstream quic://dns.adguard.com \
     --ratelimit 500 --cache --cache-optimistic --cache-size 2097152  --output /dev/null"
 
