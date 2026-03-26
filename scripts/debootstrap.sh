@@ -79,8 +79,8 @@ wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/buil
     | tar xkzf - -C "${CHROOT}" --exclude=.PKGINFO --exclude=.SIGN* 2>/dev/null
 
 cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
-rm -rf "${CHROOT}/boot/dtbs/qcom/*" 
-cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
+rm -rf ${CHROOT}/boot/dtbs/qcom/*
+cp dtbs/* ${CHROOT}/boot/dtbs/qcom/
 
 # Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
