@@ -8,7 +8,7 @@ rm -rf "${CHROOT}"
 
 echo "Using mmdebstrap for fast bootstrap..."
 mmdebstrap --arch=arm64 \
-    --include=systemd,udev,dbus,apt,wget,ca-certificates \
+    --include=systemd,udev,dbus,apt,ca-certificates \
     --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
     "${RELEASE}" "${CHROOT}"
 
@@ -58,7 +58,7 @@ chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 # Размонтирование и очистка
 for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
 
-rm -f "${CHROOT}/install_dnsproxy.sh" "${CHROOT}/setup.sh" "${CHROOT}/qemu-aarch64-static"
+rm -f "${CHROOT}/install_dnsproxy.sh" "${CHROOT}/setup.sh"
 : > "${CHROOT}/root/.bash_history"
 
 # Сеть и хостнейм
@@ -83,4 +83,4 @@ rm -rf "${CHROOT}/boot/dtbs/qcom/*" && cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
 
 # Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
-tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
+tar cpzf rootfs.tgz -C rootfs .
