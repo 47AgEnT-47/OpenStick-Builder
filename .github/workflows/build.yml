@@ -1,5 +1,5 @@
 name: Build
-on: [workflow_dispatch] # Добавил push, чтобы не только вручную жать кнопку
+on: [workflow_dispatch]
 
 permissions:
   contents: write
