@@ -50,11 +50,10 @@ cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
 cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
 chmod 0600 "${CHROOT}/etc/NetworkManager/system-connections/"*
 cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
-cp configs/install_dnsproxy.sh scripts/setup.sh /usr/bin/qemu-aarch64-static "${CHROOT}/"
+cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
 
 # Выполнение настройки в chroot
-cp /usr/bin/qemu-aarch64-static ${CHROOT}/usr/bin/
-chroot "${CHROOT}" /usr/bin/qemu-aarch64-static /bin/sh -c "/setup.sh"
+chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 
 # Размонтирование и очистка
 for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
@@ -84,4 +83,4 @@ rm -rf "${CHROOT}/boot/dtbs/qcom/*" && cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
 
 # Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
-tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
+tar cpzf rootfs.tgz -C rootfs .
