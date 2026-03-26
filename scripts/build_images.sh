@@ -41,11 +41,11 @@ chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
 
 # --- Глубокая ручная очистка (док, локали, кэши) ---
-find mnt/usr/share/locale/ -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
 rm -rf mnt/usr/include/* \
        mnt/usr/share/doc/* \
        mnt/usr/share/man/* \
        mnt/usr/share/info/* \
+       mnt/usr/share/locale/* \
        mnt/usr/share/common-licenses/* \
        mnt/var/lib/apt/lists/* \
        mnt/var/cache/apt/archives/* \
@@ -57,6 +57,9 @@ rm -rf mnt/usr/include/* \
 # Удаление статических библиотек и специфических путей
 find mnt/usr/lib -name "*.a" -delete
 find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
+
+# Принудительная установка локали C (чтобы не было ошибок в консоли)
+echo 'export LC_ALL=C' >> mnt/etc/profile
 
 # Размонтирование в обратном порядке
 umount mnt/dev/pts
