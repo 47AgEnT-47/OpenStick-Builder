@@ -35,8 +35,7 @@ mount -o bind /dev/pts mnt/dev/pts
 chroot mnt apt-get purge -y \
     build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
-    locales libc-l10n debconf-i18n \
-    vim-common vim-tiny
+    libc-l10n debconf-i18n
 
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
