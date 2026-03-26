@@ -1,36 +1,13 @@
 name: Build
-
-on:
-  workflow_dispatch:
+on: [workflow_dispatch] # Добавил push, чтобы не только вручную жать кнопку
 
 permissions:
   contents: write
 
 jobs:
-  decide:
-    runs-on: ubuntu-24.04-arm
-    outputs:
-      skip: ${{ steps.check.outputs.skip }}
-    steps:
-      - id: check
-        name: Check commit message for skip directive
-        run: |
-          msg="${{ github.event.head_commit.message }}"
-          subject="${msg%%$'\n'*}"
-          body="${msg#*$'\n'}"
-          first_body_line="$(printf "%s" "$body" | awk 'NF{print; exit}')"
-          skip="false"
-          case "$subject" in
-            "skip build:"*) skip="true" ;;
-          esac
-          case "$first_body_line" in
-            "skip build:"*) skip="true" ;;
-          esac
-          echo "skip=$skip" >> "$GITHUB_OUTPUT"
-
   build:
-    needs: decide
-    if: needs.decide.outputs.skip != 'true'
+    # Пропускаем, если в коммите есть 'skip build' (стандартный механизм GitHub)
+    if: "!contains(github.event.head_commit.message, 'skip build')"
     runs-on: ubuntu-24.04-arm
 
     steps:
@@ -38,50 +15,36 @@ jobs:
         with:
           submodules: true
 
-      - name: Install dependencies
-        run: sudo sh -e scripts/install_deps.sh
-
-      - name: Build hyp and aboot firmware
-        run: sudo sh -e scripts/build_hyp_aboot.sh
-
-      - name: Extract firmware
-        run: sudo sh -e scripts/extract_fw.sh
-
-      - name: Create rootfs
-        run: sudo sh -e scripts/debootstrap.sh
-
-      - name: Build gadget-tool
-        run: sudo sh -e scripts/build_gt.sh
-
-      - name: Create images
-        run: sudo sh -e scripts/build_images.sh
-
-
-      - name: Build, Upload and Release
-        id: meta
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build System
         run: |
-          # 1. Логика имен
-          case "$GITHUB_REF_NAME" in
-            debian)    H="Debian"; B="openstick-debian" ;;
-            ubuntu-*)  H="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; B="openstick-ubuntu" ;;
-            *)         H="Build"; B="openstick-${GITHUB_REF_NAME//[^a-z0-9]/-}" ;;
-          esac
+          sudo sh -e scripts/install_deps.sh
+          sudo sh -e scripts/build_hyp_aboot.sh
+          sudo sh -e scripts/extract_fw.sh
+          sudo sh -e scripts/debootstrap.sh
+          sudo sh -e scripts/build_gt.sh
+          sudo sh -e scripts/build_images.sh
 
-          # 2. Создаем ZIP только для релиза
+      - name: Release and Artifact
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Определяем имена
+          case "$GITHUB_REF_NAME" in
+            debian)   H="Debian"; B="openstick-debian" ;;
+            ubuntu-*) H="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; B="openstick-ubuntu" ;;
+            *)        H="Build"; B="openstick-${GITHUB_REF_NAME//[^a-z0-9]/-}" ;;
+          esac
+          
+          # Один релиз на ветку (перезаписываемый)
+          TAG="latest-${B}"
           zip -rj "$B.zip" files/
           
-          # 3. Релиз
-          gh release create "build-${GITHUB_SHA::8}" "$B.zip" \
-            --title "$H build: $(date +%F)" --prerelease --target "$GITHUB_SHA"
-
-          # 4. Выход для артефакта
+          gh release create "$TAG" "$B.zip" --title "$H Latest" --clobber --prerelease
           echo "base=$B" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifacts
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.base }}
-          path: files/ # Передаем папку, чтобы GitHub сам сделал правильный ZIP без матрешек
+          path: files/
