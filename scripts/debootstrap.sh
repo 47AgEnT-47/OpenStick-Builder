@@ -53,6 +53,7 @@ cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
 cp configs/install_dnsproxy.sh scripts/setup.sh /usr/bin/qemu-aarch64-static "${CHROOT}/"
 
 # Выполнение настройки в chroot
+cp /usr/bin/qemu-aarch64-static ${CHROOT}/usr/bin/
 chroot "${CHROOT}" /usr/bin/qemu-aarch64-static /bin/sh -c "/setup.sh"
 
 # Размонтирование и очистка
