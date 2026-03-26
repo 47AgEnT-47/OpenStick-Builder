@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   decide:
-    runs-on: ubuntu-24.04-arm
+    runs-on: self-hosted
     outputs:
       skip: ${{ steps.check.outputs.skip }}
     steps:
