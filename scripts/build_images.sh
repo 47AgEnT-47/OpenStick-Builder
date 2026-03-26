@@ -1,90 +1,114 @@
 #!/bin/sh -e
 
 CHROOT=${CHROOT=$(pwd)/rootfs}
-export DEBIAN_FRONTEND=noninteractive
+RELEASE=${RELEASE=stable}
+HOST_NAME=${HOST_NAME=openstick}
 
-# Подготовка папок
-rm -f rootfs.raw boot.raw
-mkdir -p files mnt
+rm -rf ${CHROOT}
 
-# --- Сборка BOOT ---
-dd if=/dev/zero of=boot.raw bs=1M count=64 status=none
-mkfs.ext2 -F boot.raw
-mount boot.raw mnt
-tar xf rootfs.tgz -C mnt ./boot --exclude='./boot/linux.efi' --strip-components=2
-umount mnt
+# Use mmdebstrap for faster builds (god, it's so much faster)
+echo "Using mmdebstrap for fast bootstrap..."
+mmdebstrap --arch=arm64 \
+    --include=systemd,udev,dbus,apt,wget,ca-certificates \
+    --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
+    ${RELEASE} ${CHROOT}
 
-# --- Сборка ROOTFS ---
-dd if=/dev/zero of=rootfs.raw bs=1M count=1536 status=none
-mkfs.ext4 -F rootfs.raw
-mount rootfs.raw mnt
+cat << EOF > ${CHROOT}/etc/apt/sources.list
+deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
+deb http://deb.debian.org/debian-security/ ${RELEASE}-security main contrib non-free-firmware
+deb http://deb.debian.org/debian ${RELEASE}-updates main contrib non-free-firmware
+EOF
 
-# Распаковка (исключаем лишнее сразу)
-tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
+# Speed up apt
+cat << EOF > ${CHROOT}/etc/apt/apt.conf.d/99speedup
+APT::Acquire::Retries "3";
+APT::Acquire::http::Timeout "10";
+APT::Acquire::ftp::Timeout "10";
+Acquire::Languages "none";
+APT::Install-Recommends "false";
+APT::Install-Suggests "false";
+DPkg::Options::="--force-confdef";
+DPkg::Options::="--force-confold";
+EOF
 
-# Установка ваших файлов
-cp -a dist/* mnt
+mount -t proc proc ${CHROOT}/proc/
+mount -t sysfs sys ${CHROOT}/sys/
+mount -o bind /dev/ ${CHROOT}/dev/
+mount -o bind /dev/pts/ ${CHROOT}/dev/pts/
+mount -o bind /run ${CHROOT}/run/
 
-# Монтирование системных директорий для работы apt
-mkdir -p mnt/dev/pts mnt/proc
-mount -t proc /proc mnt/proc
-mount -o bind /dev/pts mnt/dev/pts
+# configs'n stuff
+mkdir -p ${CHROOT}/etc/systemd/system
+cp -a configs/system/* ${CHROOT}/etc/systemd/system
+cp configs/nftables.conf ${CHROOT}/etc/nftables.conf
+mkdir -p ${CHROOT}/etc/NetworkManager/system-connections
+mkdir -p ${CHROOT}/etc/NetworkManager/conf.d
+cp configs/*.nmconnection ${CHROOT}/etc/NetworkManager/system-connections
+chmod 0600 ${CHROOT}/etc/NetworkManager/system-connections/*
+cp configs/99-custom.conf ${CHROOT}/etc/NetworkManager/conf.d/
 
-# --- Очистка пакетов (МАКСИМАЛЬНАЯ ЖАДНОСТЬ) ---
-# Удаляем компиляторы, лишние языки, локали и мусорные утилиты
-chroot mnt apt-get purge -y \
-    build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
-    perl perl-modules-5.40 libperl5.40 \
-    libc-l10n debconf-i18n
+# chroot setup
+cp configs/install_dnsproxy.sh ${CHROOT}
+cp scripts/setup.sh ${CHROOT}
 
-chroot mnt apt-get autoremove -y --purge
-chroot mnt apt-get clean
+# Copy qemu static and run setup script in chroot
+cp /usr/bin/qemu-aarch64-static ${CHROOT}/usr/bin/
+chroot ${CHROOT} qemu-aarch64-static /bin/sh -c "/setup.sh"
 
-# --- Глубокая ручная очистка (док, локали, кэши) ---
-rm -rf mnt/usr/include/* \
-       mnt/usr/share/doc/* \
-       mnt/usr/share/man/* \
-       mnt/usr/share/info/* \
-       mnt/usr/share/locale/* \
-       mnt/usr/share/common-licenses/* \
-       mnt/var/lib/apt/lists/* \
-       mnt/var/cache/apt/archives/* \
-       mnt/var/log/* \
-       mnt/root/.cache \
-       mnt/tmp/* \
-       mnt/var/tmp/*
+# cleanup
+for a in proc sys dev/pts dev run; do
+    umount ${CHROOT}/${a}
+done;
 
-# Удаление статических библиотек и специфических путей
-find mnt/usr/lib -name "*.a" -delete
-find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
+rm ${CHROOT}/install_dnsproxy.sh
+rm -f ${CHROOT}/setup.sh
+rm -f ${CHROOT}/usr/bin/qemu-aarch64-static
+echo -n > ${CHROOT}/root/.bash_history
 
-# Принудительная установка локали C (чтобы не было ошибок в консоли)
-echo 'export LC_ALL=C' >> mnt/etc/profile
+echo ${HOST_NAME} > ${CHROOT}/etc/hostname
+sed -i "/localhost/ s/$/ ${HOST_NAME}/" ${CHROOT}/etc/hosts
 
-# Размонтирование в обратном порядке
-umount mnt/dev/pts
-umount mnt/proc
-umount mnt
+# setup dnsmasq
+cp -a configs/dhcp.conf ${CHROOT}/etc/dnsmasq.d/dhcp.conf
 
-# --- Оптимизация и сжатие ---
-shrink_raw() {
-    FILE=$1
-    e2fsck -f -y "$FILE"
-    resize2fs -M "$FILE"
-    BLOCK_COUNT=$(dumpe2fs -h "$FILE" | grep "Block count" | awk '{print $3}')
-    BLOCK_SIZE=$(dumpe2fs -h "$FILE" | grep "Block size" | awk '{print $3}')
-    truncate -s $((BLOCK_COUNT * BLOCK_SIZE)) "$FILE"
-}
+# hosts entry for the LAN IP
+cat <<EOF >> ${CHROOT}/etc/hosts
 
-shrink_raw rootfs.raw
-shrink_raw boot.raw
+192.168.100.1	${HOST_NAME}
+EOF
 
-# Вывод размеров
-echo "Final sizes after resize:"
-ls -lh rootfs.raw boot.raw
+# add rc-local
+cp -a configs/rc.local ${CHROOT}/etc/rc.local
+chmod +x ${CHROOT}/etc/rc.local
 
-# Создание разреженных образов (Android Sparse)
-img2simg rootfs.raw files/rootfs.bin
-img2simg boot.raw files/boot.bin
+# add MSM8916 USB gadget
+cp -a configs/msm8916-usb-gadget.sh ${CHROOT}/usr/sbin/
+cp configs/msm8916-usb-gadget.conf ${CHROOT}/etc/
 
-echo "Done! Images are in 'files/' directory."
+# setup WiFi AP with hostapd
+mkdir -p ${CHROOT}/etc/hostapd
+cp configs/hostapd.conf ${CHROOT}/etc/hostapd/
+cp configs/wifi-ap.sh ${CHROOT}/usr/sbin/
+chmod +x ${CHROOT}/usr/sbin/wifi-ap.sh
+
+cp -a scripts/msm-firmware-loader.sh ${CHROOT}/usr/sbin
+
+# install kernel
+wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/builder-stuff/linux-postmarketos-qcom-msm8916-6.12.1-cpr.apk \
+    | tar xkzf - -C ${CHROOT} --exclude=.PKGINFO --exclude=.SIGN* 2>/dev/null
+
+mkdir -p ${CHROOT}/boot/extlinux
+cp configs/extlinux.conf ${CHROOT}/boot/extlinux
+
+# copy custom dtb's
+rm -rf ${CHROOT}/boot/dtbs/qcom/*
+cp dtbs/* ${CHROOT}/boot/dtbs/qcom/
+
+# create missing directory
+mkdir -p ${CHROOT}/lib/firmware/msm-firmware-loader
+
+# update fstab
+echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > ${CHROOT}/etc/fstab
+
+# backup rootfs
+tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
