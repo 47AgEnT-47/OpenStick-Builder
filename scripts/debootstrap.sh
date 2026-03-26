@@ -9,8 +9,11 @@ rm -rf ${CHROOT}
 # Use mmdebstrap for faster builds (god, it's so much faster)
 echo "Using mmdebstrap for fast bootstrap..."
 mmdebstrap --arch=arm64 \
-    --include=systemd,udev,dbus,apt,wget,ca-certificates \
+    --variant=minbase \
+    --include=apt,systemd,udev,dbus,ca-certificates,wget \
     --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
+    --dpkgopt='path-exclude=/usr/share/man/*' \
+    --dpkgopt='path-exclude=/usr/share/doc/*' \
     ${RELEASE} ${CHROOT}
 
 cat << EOF > ${CHROOT}/etc/apt/sources.list
