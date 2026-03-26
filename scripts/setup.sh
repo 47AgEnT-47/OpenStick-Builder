@@ -7,8 +7,8 @@ DEBCONF_NONINTERACTIVE_SEEN=true
 echo 'force-confdef' >> /etc/dpkg/dpkg.cfg
 echo 'force-confold' >> /etc/dpkg/dpkg.cfg
 
-echo 'tzdata tzdata/Areas select Etc' | debconf-set-selections
-echo 'tzdata tzdata/Zones/Etc select UTC' | debconf-set-selections
+echo 'tzdata tzdata/Areas select Asia' | debconf-set-selections
+echo 'tzdata tzdata/Zones/Asia select Novosibirsk' | debconf-set-selections
 echo "locales locales/default_environment_locale select en_US.UTF-8" | debconf-set-selections
 echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | debconf-set-selections
 rm -f "/etc/locale.gen"
@@ -94,6 +94,15 @@ systemctl enable NetworkManager || true
 systemctl enable systemd-resolved || true
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
+
+systemctl mask systemd-networkd
+systemctl mask wpa_supplicant
+
+cat <<EOF > /etc/NetworkManager/conf.d/99-unmanaged-devices.conf
+[keyfile]
+unmanaged-devices=interface-name:wlan0
+EOF
+
 # Ensure DHCP/DNS for USB and WIFI is active (for clients on br0)
 systemctl enable dnsmasq
 
@@ -106,14 +115,6 @@ systemctl enable hostapd
 # Make sure ModemManager is enabled for LTE
 systemctl enable ModemManager
 systemctl enable rmtfs # unsure if needed i forgot why i added it. But builds take a long time so i don't want to remove it now
-
-systemctl disable systemd-networkd
-systemctl disable wpa_supplicant
-
-cat <<EOF > /etc/NetworkManager/conf.d/99-unmanaged-devices.conf
-[keyfile]
-unmanaged-devices=interface-name:wlan0
-EOF
 
 # Time
 systemctl enable systemd-timesyncd
