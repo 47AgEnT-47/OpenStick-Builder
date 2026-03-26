@@ -75,7 +75,7 @@ cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
 chmod +x "${CHROOT}/usr/sbin/wifi-ap.sh"
 
 # Ядро и DTB
-wget -O - https://github.com \
+wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/builder-stuff/linux-postmarketos-qcom-msm8916-6.12.1-cpr.apk \
     | tar xkzf - -C "${CHROOT}" --exclude=.PKGINFO --exclude=.SIGN* 2>/dev/null
 
 cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
