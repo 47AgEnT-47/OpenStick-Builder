@@ -78,7 +78,7 @@ bash /install_dnsproxy.sh systemd
 #ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 
-*systemctl mask systemd-networkd
+systemctl mask systemd-networkd
 #systemctl mask wpa_supplicant
 
 # Ensure DHCP/DNS for USB and WIFI is active (for clients on br0)
