@@ -26,7 +26,8 @@ apt install -qqy --no-install-recommends \
     locales \
     netcat-traditional \
     sudo \
-    systemd-timesyncd 
+    systemd-timesyncd \
+    curl
 
 # Cleanup in one go
 apt autoremove -qqy
