@@ -35,7 +35,7 @@ mount -o bind /dev/pts mnt/dev/pts
 chroot mnt apt-get purge -y \
     build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
-    libc-l10n debconf-i18n
+    libc-l10n debconf-i18n locales
 
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
@@ -57,9 +57,6 @@ rm -rf mnt/usr/include/* \
 # Удаление статических библиотек и специфических путей
 find mnt/usr/lib -name "*.a" -delete
 find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
-
-# Принудительная установка локали C (чтобы не было ошибок в консоли)
-echo 'export LC_ALL=C' >> mnt/etc/profile
 
 # Размонтирование в обратном порядке
 umount mnt/dev/pts
