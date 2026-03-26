@@ -24,27 +24,9 @@ apt install -qqy --no-install-recommends \
     libc6-dev \
     linux-libc-dev \
     locales \
-    modemmanager \
     netcat-traditional \
-    network-manager \
-    openssh-server \
-    qrtr-tools \
-    rmtfs \
     sudo \
-    systemd-timesyncd \
-    tzdata \
-    wireguard-tools \
-    wpasupplicant \
-    bash-completion \
-    curl \
-    ca-certificates \
-    zram-tools \
-    bc \
-    nftables \
-    mobile-broadband-provider-info \
-    iw \
-    rfkill \
-    hostapd
+    systemd-timesyncd 
 
 # Cleanup in one go
 apt autoremove -qqy
