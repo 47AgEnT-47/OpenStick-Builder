@@ -39,18 +39,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Определяем имена
+          # 1. Имена
           case "$GITHUB_REF_NAME" in
             debian)   H="Debian"; B="openstick-debian" ;;
             ubuntu-*) H="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; B="openstick-ubuntu" ;;
             *)        H="Build"; B="openstick-${GITHUB_REF_NAME//[^a-z0-9]/-}" ;;
           esac
           
-          # Один релиз на ветку (перезаписываемый)
           TAG="latest-${B}"
           zip -rj "$B.zip" files/
-          
-          gh release create "$TAG" "$B.zip" --title "$H Latest" --clobber --prerelease
+
+          # 2. Умный релиз: создаем, если нет, или просто заливаем файл, если есть
+          gh release create "$TAG" --title "$H Latest" --prerelease "$B.zip" 2>/dev/null || \
+          gh release upload "$TAG" "$B.zip" --clobber
+
           echo "base=$B" >> "$GITHUB_OUTPUT"
 
       - name: Upload
