@@ -68,7 +68,8 @@ printf "\n192.168.100.1\t%s\n" "${HOST_NAME}" >> "${CHROOT}/etc/hosts"
 
 # Сервисы и гаджеты
 cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
-cp -a configs/rc.local "${CHROOT}/etc/rc.local" && chmod +x "${CHROOT}/etc/rc.local"
+cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
+chmod +x "${CHROOT}/etc/rc.local"
 cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
 cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
 cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
@@ -79,8 +80,8 @@ wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/buil
     | tar xkzf - -C "${CHROOT}" --exclude=.PKGINFO --exclude=.SIGN* 2>/dev/null
 
 cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
-rm -rf ${CHROOT}/boot/dtbs/qcom/*
-cp dtbs/* ${CHROOT}/boot/dtbs/qcom/
+rm -rf $"{CHROOT}/boot/dtbs/qcom/*"
+cp dtbs/* $"{CHROOT}/boot/dtbs/qcom/"
 
 # Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
