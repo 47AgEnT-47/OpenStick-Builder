@@ -34,29 +34,39 @@ jobs:
         run: sudo sh -e scripts/build_images.sh
 
 
-      - name: Release and Artifact
+      - name: Prepare build metadata
         id: meta
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          # 1. Имена
+          # 1. Логика имен
           case "$GITHUB_REF_NAME" in
             debian)   H="Debian"; B="openstick-debian" ;;
             ubuntu-*) H="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; B="openstick-ubuntu" ;;
             *)        H="Build"; B="openstick-${GITHUB_REF_NAME//[^a-z0-9]/-}" ;;
           esac
           
-          TAG="latest-${B}"
+          # 2. Создаем ZIP для релиза
           zip -rj "$B.zip" files/
-
-          # 2. Умный релиз: создаем, если нет, или просто заливаем файл, если есть
-          gh release create "$TAG" --title "$H Latest" --prerelease "$B.zip" 2>/dev/null || \
-          gh release upload "$TAG" "$B.zip" --clobber
-
+          
+          # 3. Выплевываем переменные для следующих шагов
           echo "base=$B" >> "$GITHUB_OUTPUT"
+          echo "human=$H" >> "$GITHUB_OUTPUT"
+          echo "zip=$B.zip" >> "$GITHUB_OUTPUT"
 
-      - name: Upload
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.base }}
           path: files/
+
+      - name: Update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest-${{ steps.meta.outputs.base }}"
+          FILE="${{ steps.meta.outputs.zip }}"
+          TITLE="${{ steps.meta.outputs.human }} Latest"
+
+          # Сначала пробуем создать, если не вышло (уже есть) — просто перезаливаем файл
+          gh release create "$TAG" --title "$TITLE" --prerelease "$FILE" 2>/dev/null || \
+          gh release upload "$TAG" "$FILE" --clobber
