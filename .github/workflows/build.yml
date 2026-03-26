@@ -56,74 +56,48 @@ jobs:
       - name: Create images
         run: sudo sh -e scripts/build_images.sh
 
-      - name: Determine artifact name
-        id: artifact_name
-        run: |
-          branch="$GITHUB_REF_NAME"
-          case "$branch" in
-            debian)
-              base="openstick-debian" ;;
-            ubuntu-*)
-              base="openstick-ubuntu" ;;
-            *)
-              # Fallback: sanitize branch for artifact naming
-              sanitized=$(echo "$branch" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-')
-              base="openstick-${sanitized}" ;;
-          esac
-          echo "base=$base" >> "$GITHUB_OUTPUT"
-          echo "zip=${base}.zip" >> "$GITHUB_OUTPUT"
 
-      - name: Zip artifact
-        env:
-          ZIP_NAME: ${{ steps.artifact_name.outputs.zip }}
+      - name: Prepare build metadata and package
+        id: meta
+        shell: bash
         run: |
-          python3 - << 'PY'
-          import os, zipfile
-          zip_name = os.environ['ZIP_NAME']
-          with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
-              for root, _dirs, files in os.walk('files'):
-                  for f in files:
-                      full = os.path.join(root, f)
-                      arc = os.path.relpath(full, 'files')
-                      zf.write(full, arc)
-          print(f"Created {zip_name}")
-          PY
+          # 1. Логика имен
+          case "$GITHUB_REF_NAME" in
+            debian)       HUMAN="Debian"; BASE="openstick-debian" ;;
+            ubuntu-24.04) HUMAN="Ubuntu 24.04 (Noble)"; BASE="openstick-ubuntu" ;;
+            ubuntu-*)     HUMAN="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; BASE="openstick-ubuntu" ;;
+            *)
+              CLEAN=$(echo "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-')
+              BASE="openstick-${CLEAN%-}"
+              HUMAN=$(echo "$GITHUB_REF_NAME" | sed -r 's/(^|-)([a-z])/\U \2/g' | xargs)
+              ;;
+          esac
+
+          # 2. Создаем ZIP (он нужен для релиза)
+          ZIP_NAME="${BASE}.zip"
+          cd files && zip -r "../$ZIP_NAME" . && cd ..
+
+          # 3. Вывод переменных
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          echo "human=$HUMAN" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifact_name.outputs.base }}
-          path: ${{ steps.artifact_name.outputs.zip }}
+          name: ${{ steps.meta.outputs.base }}
+          path: ${{ steps.meta.outputs.zip }} # Загружаем уже готовый zip, чтобы не было матрешки
 
-      - name: Create Release for this commit
+      - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="build-${GITHUB_SHA}"
-
-          branch="$GITHUB_REF_NAME"
-          case "$branch" in
-            debian)
-              human="Debian" ;;
-            ubuntu-24.04)
-              human="Ubuntu 24.04 (Noble)" ;;
-            ubuntu-*)
-              ver="${branch#ubuntu-}"
-              human="Ubuntu ${ver}" ;;
-            *)
-              tmp="${branch//-/ }"
-              human="$(awk '{for(i=1;i<=NF;i++){ $i=toupper(substr($i,1,1)) substr($i,2)}; print}' <<< "$tmp")" ;;
-          esac
-
+          tag="build-${GITHUB_SHA::8}"
           date_str="$(date -u +%Y-%m-%d)"
-          title="${human} build: ${date_str}"
-          notes="Automated release for commit ${GITHUB_SHA} on ${GITHUB_REF_NAME}"
-
-          asset="${{ steps.artifact_name.outputs.zip }}"
-
+          
           gh release create "$tag" \
             --target "$GITHUB_SHA" \
-            --title "$title" \
-            --notes "$notes" \
+            --title "${{ steps.meta.outputs.human }} build: $date_str" \
+            --notes "Automated release for commit ${GITHUB_SHA} on ${GITHUB_REF_NAME}" \
             --prerelease \
-            "$asset"
+            "${{ steps.meta.outputs.zip }}"
