@@ -57,47 +57,31 @@ jobs:
         run: sudo sh -e scripts/build_images.sh
 
 
-      - name: Prepare build metadata and package
+      - name: Build, Upload and Release
         id: meta
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 1. Логика имен
           case "$GITHUB_REF_NAME" in
-            debian)       HUMAN="Debian"; BASE="openstick-debian" ;;
-            ubuntu-24.04) HUMAN="Ubuntu 24.04 (Noble)"; BASE="openstick-ubuntu" ;;
-            ubuntu-*)     HUMAN="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; BASE="openstick-ubuntu" ;;
-            *)
-              CLEAN=$(echo "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-')
-              BASE="openstick-${CLEAN%-}"
-              HUMAN=$(echo "$GITHUB_REF_NAME" | sed -r 's/(^|-)([a-z])/\U \2/g' | xargs)
-              ;;
+            debian)    H="Debian"; B="openstick-debian" ;;
+            ubuntu-*)  H="Ubuntu ${GITHUB_REF_NAME#ubuntu-}"; B="openstick-ubuntu" ;;
+            *)         H="Build"; B="openstick-${GITHUB_REF_NAME//[^a-z0-9]/-}" ;;
           esac
 
-          # 2. Создаем ZIP (он нужен для релиза)
-          ZIP_NAME="${BASE}.zip"
-          cd files && zip -r "../$ZIP_NAME" . && cd ..
+          # 2. Создаем ZIP только для релиза
+          zip -rj "$B.zip" files/
+          
+          # 3. Релиз
+          gh release create "build-${GITHUB_SHA::8}" "$B.zip" \
+            --title "$H build: $(date +%F)" --prerelease --target "$GITHUB_SHA"
 
-          # 3. Вывод переменных
-          echo "base=$BASE" >> "$GITHUB_OUTPUT"
-          echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
-          echo "human=$HUMAN" >> "$GITHUB_OUTPUT"
+          # 4. Выход для артефакта
+          echo "base=$B" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.base }}
-          path: ${{ steps.meta.outputs.zip }} # Загружаем уже готовый zip, чтобы не было матрешки
-
-      - name: Create Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="build-${GITHUB_SHA::8}"
-          date_str="$(date -u +%Y-%m-%d)"
-          
-          gh release create "$tag" \
-            --target "$GITHUB_SHA" \
-            --title "${{ steps.meta.outputs.human }} build: $date_str" \
-            --notes "Automated release for commit ${GITHUB_SHA} on ${GITHUB_REF_NAME}" \
-            --prerelease \
-            "${{ steps.meta.outputs.zip }}"
+          path: files/ # Передаем папку, чтобы GitHub сам сделал правильный ZIP без матрешек
