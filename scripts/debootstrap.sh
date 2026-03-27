@@ -84,6 +84,9 @@ cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
 rm -rf "${CHROOT}/boot/dtbs/qcom/"*
 cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
 
+# точка доступа 
+"${CHROOT}/usr/sbin/wifi-ap.sh"
+
 # Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
 tar cpzf rootfs.tgz -C rootfs .
