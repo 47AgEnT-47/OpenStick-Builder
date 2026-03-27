@@ -35,7 +35,7 @@ mount -o bind /dev/pts mnt/dev/pts
 chroot mnt apt-get purge -y \
     build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
-    libc-l10n debconf-i18n
+    libc-l10n debconf-i18n python* || true
 
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
@@ -66,7 +66,7 @@ umount mnt
 # --- Оптимизация и сжатие ---
 shrink_raw() {
     FILE=$1
-    e2fsck -f -y "$FILE"
+    e2fsck -fDy "$FILE"
     resize2fs -M "$FILE"
     BLOCK_COUNT=$(dumpe2fs -h "$FILE" | grep "Block count" | awk '{print $3}')
     BLOCK_SIZE=$(dumpe2fs -h "$FILE" | grep "Block size" | awk '{print $3}')
