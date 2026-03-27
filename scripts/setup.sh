@@ -94,15 +94,19 @@ systemctl enable systemd-resolved || true
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 systemctl mask systemd-networkd
-systemctl mask wpa_supplicant
 
 systemctl enable dnsmasq
 systemctl enable nftables
 systemctl enable hostapd
 systemctl enable ModemManager
 systemctl enable systemd-timesyncd
+systemcrl enable wpa_supplicant
 
 systemctl mask systemd-networkd-wait-online.service
+
+chmod +x /usr/sbin/wifi-ap.sh
+chmod +x /usr/sbin/wifi-client.sh
+/usr/sbin/wifi-ap.sh
 
 # Prevent power button shutdown
 sed -i 's/^#HandlePowerKey=poweroff/HandlePowerKey=ignore/' /etc/systemd/logind.conf
