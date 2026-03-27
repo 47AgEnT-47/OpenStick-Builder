@@ -70,10 +70,11 @@ printf "\n192.168.100.1\t%s\n" "${HOST_NAME}" >> "${CHROOT}/etc/hosts"
 cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
 cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
 chmod +x "${CHROOT}/etc/rc.local"
-cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
+cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
 cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
 cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
 chmod +x "${CHROOT}/usr/sbin/wifi-ap.sh"
+chmod +x "${CHROOT}/usr/sbin/wifi-client.sh"
 
 # Ядро и DTB
 wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/builder-stuff/linux-postmarketos-qcom-msm8916-6.12.1-cpr.apk \

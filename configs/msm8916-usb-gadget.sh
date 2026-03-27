@@ -13,7 +13,6 @@ GADGET_PATH="/sys/kernel/config/usb_gadget/msm8916"
 : ${USB_DEVICE_VERSION:="0x0100"}
 : ${USB_MANUFACTURER:="MSM8916"}
 : ${USB_PRODUCT:="USB Gadget"}
-# УБРАТЬ NETWORK_BRIDGE
 
 # Helper functions
 log() {
@@ -268,8 +267,13 @@ setup_gadget() {
     log "Using UDC: ${udc}"
     echo "${udc}" > UDC || error "Failed to enable UDC"
 
-    # УБРАТЬ setup_network — больше не нужен
-    # USB интерфейс (usb0) будет автоматически поднят NetworkManager
+    # Поднять usb0
+    sleep 1
+    if [ "${ENABLE_RNDIS}" = "1" ] && [ -f functions/rndis.usb0/ifname ]; then
+        ifname=$(cat functions/rndis.usb0/ifname)
+        ip link set "$ifname" up
+    fi
+    
 }
 
 teardown_gadget() {
