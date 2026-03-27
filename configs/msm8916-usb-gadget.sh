@@ -1,8 +1,6 @@
 #!/bin/bash
 # Main script for MSM8916 USB Gadget
 
-#SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-#CONFIG_FILE="${SCRIPT_DIR}/msm8916-usb-gadget.conf"
 CONFIG_FILE="/etc/msm8916-usb-gadget.conf"
 GADGET_PATH="/sys/kernel/config/usb_gadget/msm8916"
 
@@ -15,7 +13,7 @@ GADGET_PATH="/sys/kernel/config/usb_gadget/msm8916"
 : ${USB_DEVICE_VERSION:="0x0100"}
 : ${USB_MANUFACTURER:="MSM8916"}
 : ${USB_PRODUCT:="USB Gadget"}
-: ${NETWORK_BRIDGE:="br0"}
+# УБРАТЬ NETWORK_BRIDGE
 
 # Helper functions
 log() {
@@ -270,46 +268,8 @@ setup_gadget() {
     log "Using UDC: ${udc}"
     echo "${udc}" > UDC || error "Failed to enable UDC"
 
-    # Configure network interfaces
-    setup_network
-}
-
-setup_network() {
-    log "Configuring network interfaces"
-
-    # Wait up to 30s for bridge to exist (As NetworkManager is slower at creating it)
-    max_wait=30
-    waited=0
-    while ! ip link show "${NETWORK_BRIDGE}" >/dev/null 2>&1; do
-        if [ $waited -ge $max_wait ]; then
-            log "Warning: Bridge ${NETWORK_BRIDGE} does not exist after ${max_wait}s"
-            return
-        fi
-        sleep 1
-        waited=$((waited + 1))
-    done
-
-    # Add interfaces to bridge
-    if [ "${ENABLE_RNDIS}" = "1" ] && [ -f functions/rndis.usb0/ifname ]; then
-        rndis_if="$(cat functions/rndis.usb0/ifname)"
-        log "Adding ${rndis_if} to bridge ${NETWORK_BRIDGE}"
-        ip link set "${rndis_if}" up
-        ip link set "${rndis_if}" master "${NETWORK_BRIDGE}" || true
-    fi
-
-    if [ "${ENABLE_ECM}" = "1" ] && [ -f functions/ecm.usb0/ifname ]; then
-        ecm_if="$(cat functions/ecm.usb0/ifname)"
-        log "Adding ${ecm_if} to bridge ${NETWORK_BRIDGE}"
-        ip link set "${ecm_if}" up
-        ip link set "${ecm_if}" master "${NETWORK_BRIDGE}" || true
-    fi
-
-    if [ "${ENABLE_NCM}" = "1" ] && [ -f functions/ncm.usb0/ifname ]; then
-        ncm_if="$(cat functions/ncm.usb0/ifname)"
-        log "Adding ${ncm_if} to bridge ${NETWORK_BRIDGE}"
-        ip link set "${ncm_if}" up
-        ip link set "${ncm_if}" master "${NETWORK_BRIDGE}" || true
-    fi
+    # УБРАТЬ setup_network — больше не нужен
+    # USB интерфейс (usb0) будет автоматически поднят NetworkManager
 }
 
 teardown_gadget() {
@@ -338,14 +298,7 @@ teardown_gadget() {
     # Disable gadget
     echo "" > UDC || true
 
-    # Remove network interfaces from bridge
-    for func in functions/*/ifname; do
-        if [ -f "${func}" ]; then
-            iface="$(cat "${func}")"
-            ip link set "${iface}" nomaster || true
-            ip link set "${iface}" down || true
-        fi
-    done
+    # УБРАТЬ удаление из bridge — больше не нужно
 
     # Remove configuration - use wildcard to catch all links
     rm -f configs/c.1/* 2>/dev/null || true

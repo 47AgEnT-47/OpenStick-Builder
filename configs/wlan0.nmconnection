@@ -1,0 +1,12 @@
+[connection]
+id=wlan0
+uuid=7a8c9f1e-2d3e-4f5a-6b7c-8d9e0f1a2b3c
+type=ethernet
+interface-name=wlan0
+autoconnect=true
+
+[ipv4]
+method=disabled   # ← НЕТ IP!
+
+[ipv6]
+method=disabled

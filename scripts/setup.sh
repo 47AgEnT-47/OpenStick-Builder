@@ -74,7 +74,6 @@ alias ll='ls --color=auto -lhA'
 alias l='ls --color=auto -l'
 alias cl='clear'
 alias ip='ip --color'
-alias bridge='bridge -color'
 alias free='free -h'
 alias df='df -h'
 alias du='du -hs'
@@ -86,73 +85,55 @@ SystemMaxUse=300M
 SystemKeepFree=1G
 EOF
 
-# install dnsproxy (as a systemd service) and integrate with systemd-resolved
+# install dnsproxy
 bash /install_dnsproxy.sh systemd
 
-# Ensure NetworkManager and systemd-resolved are enabled and managing DNS (offline enable inside chroot)
+# Enable services
 systemctl enable NetworkManager || true
 systemctl enable systemd-resolved || true
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-
 systemctl mask systemd-networkd
 systemctl mask wpa_supplicant
 
-# Ensure DHCP/DNS for USB and WIFI is active (for clients on br0)
 systemctl enable dnsmasq
-
-# Enable nftables
 systemctl enable nftables
-
-# Enable hostapd for WiFi AP
 systemctl enable hostapd
-
-# Make sure ModemManager is enabled for LTE
 systemctl enable ModemManager
-systemctl enable rmtfs # unsure if needed i forgot why i added it. But builds take a long time so i don't want to remove it now
-
-# Time
 systemctl enable systemd-timesyncd
 
 systemctl mask systemd-networkd-wait-online.service
 
-# Prevent the accidental shutdown by power button
+# Prevent power button shutdown
 sed -i 's/^#HandlePowerKey=poweroff/HandlePowerKey=ignore/' /etc/systemd/logind.conf
 
-## Enable IPv4 forwarding and DISABLE IPv6
-if [ -f /etc/sysctl.conf ]; then
-    # Включаем только IPv4 форвардинг
-    sed -i 's/^#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
-    grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
-    
-    # Полностью отключаем IPv6 во всем ядре
-    echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
-    echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
-    echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
-else
-    cat <<EOF > /etc/sysctl.conf
+# Enable IPv4 forwarding, disable IPv6
+cat <<EOF > /etc/sysctl.conf
 net.ipv4.ip_forward=1
 net.ipv6.conf.all.disable_ipv6=1
 net.ipv6.conf.default.disable_ipv6=1
 net.ipv6.conf.lo.disable_ipv6=1
 EOF
-fi
 
-# Enable IPv4 forwarding and DISABLE IPv6
-if [ -f /etc/sysctl.conf ]; then
-    # Включаем только IPv4 форвардинг
-    sed -i 's/^#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
-    grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
-    
-    # Полностью отключаем IPv6 во всем ядре
-    echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
-    echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
-    echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
-else
-    cat <<EOF > /etc/sysctl.conf
-net.ipv4.ip_forward=1
-net.ipv6.conf.all.disable_ipv6=1
-net.ipv6.conf.default.disable_ipv6=1
-net.ipv6.conf.lo.disable_ipv6=1
+# Configure dnsmasq
+cat > /etc/dnsmasq.d/lan.conf << 'EOF'
+interface=usb0
+interface=wlan0
+bind-dynamic
+dhcp-authoritative
+dhcp-range=192.168.100.10,192.168.100.99,255.255.255.0,12h
+no-resolv
+server=127.0.0.1#5353
+domain-needed
+bogus-priv
+cache-size=0
+domain=lan,192.168.100.0/24
+local=/lan/
+expand-hosts
+dhcp-option=252,"\n"
+dhcp-option=vendor:MSFT,2,1i
 EOF
-fi
+
+# Configure SSH
+sed -i 's/^#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config
+systemctl enable ssh
