@@ -6,7 +6,8 @@ interface-name=wlan0
 autoconnect=true
 
 [ipv4]
-method=disabled   # ← НЕТ IP!
+method=manual
+address1=192.168.100.1/24
 
 [ipv6]
 method=disabled
