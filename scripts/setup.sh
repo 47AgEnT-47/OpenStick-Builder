@@ -115,25 +115,6 @@ net.ipv6.conf.default.disable_ipv6=1
 net.ipv6.conf.lo.disable_ipv6=1
 EOF
 
-# Configure dnsmasq
-cat > /etc/dnsmasq.d/lan.conf << 'EOF'
-interface=usb0
-interface=wlan0
-bind-dynamic
-dhcp-authoritative
-dhcp-range=192.168.100.10,192.168.100.99,255.255.255.0,12h
-no-resolv
-server=127.0.0.1#5353
-domain-needed
-bogus-priv
-cache-size=0
-domain=lan,192.168.100.0/24
-local=/lan/
-expand-hosts
-dhcp-option=252,"\n"
-dhcp-option=vendor:MSFT,2,1i
-EOF
-
 # Configure SSH
 sed -i 's/^#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config
 systemctl enable ssh
