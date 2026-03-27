@@ -30,8 +30,7 @@ mkdir -p mnt/dev/pts mnt/proc
 mount -t proc /proc mnt/proc
 mount -o bind /dev/pts mnt/dev/pts
 
-# --- Очистка пакетов (МАКСИМАЛЬНАЯ ЖАДНОСТЬ) ---
-# Удаляем компиляторы, лишние языки, локали и мусорные утилиты
+# Удаляем компиляторы
 chroot mnt apt-get purge -y \
     build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
