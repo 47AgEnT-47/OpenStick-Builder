@@ -106,7 +106,6 @@ systemctl mask systemd-networkd-wait-online.service
 
 chmod +x /usr/sbin/wifi-ap.sh
 chmod +x /usr/sbin/wifi-client.sh
-/usr/sbin/wifi-ap.sh
 
 # Prevent power button shutdown
 sed -i 's/^#HandlePowerKey=poweroff/HandlePowerKey=ignore/' /etc/systemd/logind.conf
