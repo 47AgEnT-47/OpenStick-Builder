@@ -8,7 +8,7 @@ jobs:
   build:
     # Пропускаем, если в коммите есть 'skip build' (стандартный механизм GitHub)
     if: "!contains(github.event.head_commit.message, 'skip build')"
-    runs-on: self-hosted
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - uses: actions/checkout@v4
