@@ -100,7 +100,7 @@ systemctl enable nftables
 systemctl enable hostapd
 systemctl enable ModemManager
 systemctl enable systemd-timesyncd
-systemcrl enable wpa_supplicant
+systemctl enable wpa_supplicant
 
 systemctl mask systemd-networkd-wait-online.service
 
