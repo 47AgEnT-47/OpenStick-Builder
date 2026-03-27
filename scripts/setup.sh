@@ -93,8 +93,6 @@ systemctl enable NetworkManager || true
 systemctl enable systemd-resolved || true
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-systemctl mask systemd-networkd
-
 systemctl enable dnsmasq
 systemctl enable nftables
 systemctl enable hostapd
@@ -102,6 +100,8 @@ systemctl enable ModemManager
 systemctl enable systemd-timesyncd
 systemctl enable wpa_supplicant
 
+systemctl mask systemd-networkd
+systemctl mask wpa_supplicant
 systemctl mask systemd-networkd-wait-online.service
 
 chmod +x /usr/sbin/wifi-ap.sh
