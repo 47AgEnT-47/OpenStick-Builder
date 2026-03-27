@@ -52,6 +52,14 @@ chmod 0600 "${CHROOT}/etc/NetworkManager/system-connections/"*
 cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
 cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
 
+# Сервисы и гаджеты
+cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
+cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
+chmod +x "${CHROOT}/etc/rc.local"
+cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
+cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
+cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
+
 # Выполнение настройки в chroot
 chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 
@@ -63,18 +71,8 @@ rm -f "${CHROOT}/install_dnsproxy.sh" "${CHROOT}/setup.sh"
 
 # Сеть и хостнейм
 echo "${HOST_NAME}" > "${CHROOT}/etc/hostname"
-sed -i "/localhost/ s/$/ ${HOST_NAME}/" "${CHROOT}/etc/hosts"
+sed -i "/localhost/ s/$/ ${HOST_NAME}/" "${CHROOT}/etc/hts"
 printf "\n192.168.100.1\t%s\n" "${HOST_NAME}" >> "${CHROOT}/etc/hosts"
-
-# Сервисы и гаджеты
-cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
-cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
-chmod +x "${CHROOT}/etc/rc.local"
-cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
-cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
-cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
-chmod +x "${CHROOT}/usr/sbin/wifi-ap.sh"
-chmod +x "${CHROOT}/usr/sbin/wifi-client.sh"
 
 # Ядро и DTB
 wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/builder-stuff/linux-postmarketos-qcom-msm8916-6.12.1-cpr.apk \
@@ -83,9 +81,6 @@ wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/buil
 cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
 rm -rf "${CHROOT}/boot/dtbs/qcom/"*
 cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
-
-# точка доступа 
-"${CHROOT}/usr/sbin/wifi-ap.sh"
 
 # Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
