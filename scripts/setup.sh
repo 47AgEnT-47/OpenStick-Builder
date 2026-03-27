@@ -118,6 +118,3 @@ EOF
 # Configure SSH
 sed -i 's/^#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config
 systemctl enable ssh
-
-# Enable AP
-/usr/sbin/wifi-ap.sh
