@@ -9,4 +9,5 @@ RUN apt-get update && apt-get install -y \
     gcc-aarch64-linux-gnu gcc-arm-none-eabi libtool \
     make pkg-config python3-cryptography python3-pyasn1-modules \
     python3-pycryptodome qemu-user-static unzip wget \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
