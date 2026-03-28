@@ -1,91 +1,121 @@
 #!/bin/sh -e
 
-CHROOT=${CHROOT:-$(pwd)/rootfs}
-RELEASE=${RELEASE:-stable}
-HOST_NAME=${HOST_NAME:-openstick}
+DEBIAN_FRONTEND=noninteractive
+DEBCONF_NONINTERACTIVE_SEEN=true
 
-rm -rf "${CHROOT}"
+# Faster apt configuration
+echo 'force-confdef' >> /etc/dpkg/dpkg.cfg
+echo 'force-confold' >> /etc/dpkg/dpkg.cfg
 
-echo "Using mmdebstrap for fast bootstrap..."
-mmdebstrap --arch=arm64 \
-    --include=systemd,udev,dbus,apt,ca-certificates \
-    --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
-    "${RELEASE}" "${CHROOT}"
+# Настройка локалей и timezone
+echo 'tzdata tzdata/Areas select Asia' | debconf-set-selections
+echo 'tzdata tzdata/Zones/Asia select Novosibirsk' | debconf-set-selections
+echo "locales locales/default_environment_locale select en_US.UTF-8" | debconf-set-selections
+echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | debconf-set-selections
+rm -f "/etc/locale.gen"
 
-# Настройка репозиториев
-cat << EOF > "${CHROOT}/etc/apt/sources.list"
-deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
-deb http://deb.debian.org/debian-security ${RELEASE}-security main contrib non-free-firmware
-deb http://deb.debian.org/debian ${RELEASE}-updates main contrib non-free-firmware
-EOF
-
-# Оптимизация APT
-cat << EOF > "${CHROOT}/etc/apt/apt.conf.d/99speedup"
-APT::Acquire::Retries "3";
-APT::Acquire::http::Timeout "10";
-APT::Acquire::ftp::Timeout "10";
-Acquire::Languages "none";
-APT::Install-Recommends "false";
-APT::Install-Suggests "false";
-DPkg::Options::="--force-confdef";
-DPkg::Options::="--force-confold";
-EOF
-
-# Монтирование
-for dir in proc sys dev dev/pts run; do
-    mkdir -p "${CHROOT}/${dir}"
-    mount --bind "/${dir}" "${CHROOT}/${dir}"
-done
-
-# Копирование всех конфигов и скриптов ДО выполнения setup.sh
-mkdir -p "${CHROOT}/etc/systemd/system" \
-         "${CHROOT}/etc/NetworkManager/system-connections" \
-         "${CHROOT}/etc/NetworkManager/conf.d" \
-         "${CHROOT}/etc/hostapd" \
-         "${CHROOT}/boot/extlinux" \
-         "${CHROOT}/lib/firmware/msm-firmware-loader"
-
-# Копируем все необходимые файлы
-cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
-cp -a configs/system/* "${CHROOT}/etc/systemd/system/"
-cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
-cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
-chmod 0600 "${CHROOT}/etc/NetworkManager/system-connections/"*
-cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
-cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/"
-cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
-chmod +x "${CHROOT}/etc/rc.local"
-cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
-cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
-cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
-
-# Выполняем setup.sh внутри chroot
-chroot "${CHROOT}" /bin/sh -c "/setup.sh"
-
-# Размонтирование
-for dir in proc sys dev/pts dev run; do 
-    umount "${CHROOT}/${dir}" 2>/dev/null || true
-done
+# Установка пакетов
+apt update -qqy
+apt upgrade -qqy --with-new-pkgs
+apt install -qqy --no-install-recommends \
+    build-essential \
+    dnsmasq \
+    libconfig11 \
+    libconfig-dev \
+    libc6-dev \
+    linux-libc-dev \
+    locales \
+    modemmanager \
+    netcat-traditional \
+    network-manager \
+    openssh-server \
+    qrtr-tools \
+    rmtfs \
+    sudo \
+    systemd-timesyncd \
+    tzdata \
+    wireguard-tools \
+    wpasupplicant \
+    bash-completion \
+    curl \
+    ca-certificates \
+    zram-tools \
+    bc \
+    nftables \
+    mobile-broadband-provider-info \
+    iw \
+    rfkill \
+    hostapd
 
 # Очистка
-rm -f "${CHROOT}/install_dnsproxy.sh" "${CHROOT}/setup.sh"
-: > "${CHROOT}/root/.bash_history"
+apt autoremove -qqy
+apt clean
+rm -rf /var/lib/apt/lists/*
+rm -f /etc/machine-id
+rm -f /var/lib/dbus/machine-id
+rm /etc/ssh/ssh_host_*
+find /var/log -type f -delete
 
-# Настройка сети и hostname
-echo "${HOST_NAME}" > "${CHROOT}/etc/hostname"
-sed -i "/localhost/ s/$/ ${HOST_NAME}/" "${CHROOT}/etc/hosts"
-printf "\n192.168.100.1\t%s\n" "${HOST_NAME}" >> "${CHROOT}/etc/hosts"
+# Настройка пользователей
+passwd -dl root
 
-# Ядро и DTB
-wget -O - https://github.com/Mio-sha512/openstick-stuff/raw/refs/heads/main/builder-stuff/linux-postmarketos-qcom-msm8916-6.12.1-cpr.apk \
-    | tar xkzf - -C "${CHROOT}" --exclude=.PKGINFO --exclude=.SIGN* 2>/dev/null
+adduser --disabled-password --comment "" user
+echo "user:1" | chpasswd
+usermod -aG sudo user
 
-cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
-rm -rf "${CHROOT}/boot/dtbs/qcom/"*
-cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
+# Алиасы
+cat <<EOF >>/etc/bash.bashrc
 
-# fstab
-echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
+alias ls='ls --color=auto -lh'
+alias ll='ls --color=auto -lhA'
+alias l='ls --color=auto -l'
+alias cl='clear'
+alias ip='ip --color'
+alias free='free -h'
+alias df='df -h'
+alias du='du -hs'
 
-# Создание архива
-tar cpzf rootfs.tgz -C rootfs .
+EOF
+
+# Настройка journald
+cat <<EOF >> /etc/systemd/journald.conf
+SystemMaxUse=300M
+SystemKeepFree=1G
+EOF
+
+# Установка dnsproxy
+bash /install_dnsproxy.sh systemd
+
+# Включение сервисов
+systemctl enable NetworkManager || true
+systemctl enable systemd-resolved || true
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+systemctl enable dnsmasq
+systemctl enable nftables
+systemctl enable hostapd
+systemctl enable ModemManager
+systemctl enable systemd-timesyncd
+systemctl enable wpa_supplicant
+
+systemctl mask systemd-networkd
+systemctl mask wpa_supplicant
+systemctl mask systemd-networkd-wait-online.service
+
+chmod +x /usr/sbin/wifi-ap.sh
+chmod +x /usr/sbin/wifi-client.sh
+
+# Отключаем выключение по кнопке питания
+sed -i 's/^#HandlePowerKey=poweroff/HandlePowerKey=ignore/' /etc/systemd/logind.conf
+
+# Настройка sysctl
+cat <<EOF > /etc/sysctl.conf
+net.ipv4.ip_forward=1
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6=1
+EOF
+
+# Настройка SSH
+sed -i 's/^#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config
+systemctl enable ssh
