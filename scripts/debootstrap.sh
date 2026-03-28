@@ -62,6 +62,8 @@ chmod +x "${CHROOT}/etc/rc.local"
 cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
 cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
 cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
+chmod +x ${CHROOT}/usr/sbin/wifi-ap.sh
+chmod +x ${CHROOT}/usr/sbin/wifi-client.sh
 
 # Размонтирование и очистка
 for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
