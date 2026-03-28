@@ -6,30 +6,33 @@ permissions:
 
 jobs:
   build:
+    # Пропускаем, если в коммите есть 'skip build' (стандартный механизм GitHub)
     if: "!contains(github.event.head_commit.message, 'skip build')"
     runs-on: ubuntu-24.04-arm
-    container:
-      image: ghcr.io/47agent-47/openstick-builder/build-env:latest
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
 
+      - name: Install dependencies
+        run: sudo sh -e scripts/install_deps.sh
+        
       - name: Build hyp and aboot firmware
-        run: sh -e scripts/build_hyp_aboot.sh
+        run: sudo sh -e scripts/build_hyp_aboot.sh
 
       - name: Extract firmware
-        run: sh -e scripts/extract_fw.sh
+        run: sudo sh -e scripts/extract_fw.sh
         
       - name: Create rootfs
-        run: sh -e scripts/debootstrap.sh
+        run: sudo sh -e scripts/debootstrap.sh
 
       - name: Build gadget-tool
-        run: sh -e scripts/build_gt.sh
+        run: sudo sh -e scripts/build_gt.sh
         
       - name: Create images
-        run: sh -e scripts/build_images.sh
+        run: sudo sh -e scripts/build_images.sh
+
 
       - name: Prepare build metadata
         id: meta
