@@ -12,7 +12,7 @@ mmdebstrap --arch=arm64 \
     --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
     "${RELEASE}" "${CHROOT}"
 
-# Настройка репозиториев (один блок вместо трех)
+# Настройка репозиториев
 cat << EOF > "${CHROOT}/etc/apt/sources.list"
 deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
 deb http://deb.debian.org/debian-security ${RELEASE}-security main contrib non-free-firmware
@@ -31,13 +31,13 @@ DPkg::Options::="--force-confdef";
 DPkg::Options::="--force-confold";
 EOF
 
-# Монтирование (циклом быстрее и чище)
+# Монтирование
 for dir in proc sys dev dev/pts run; do
     mkdir -p "${CHROOT}/${dir}"
     mount --bind "/${dir}" "${CHROOT}/${dir}"
 done
 
-# Копирование конфигов и скриптов
+# Копирование всех конфигов и скриптов ДО выполнения setup.sh
 mkdir -p "${CHROOT}/etc/systemd/system" \
          "${CHROOT}/etc/NetworkManager/system-connections" \
          "${CHROOT}/etc/NetworkManager/conf.d" \
@@ -45,18 +45,13 @@ mkdir -p "${CHROOT}/etc/systemd/system" \
          "${CHROOT}/boot/extlinux" \
          "${CHROOT}/lib/firmware/msm-firmware-loader"
 
-# Выполнение настройки в chroot
+# Копируем все необходимые файлы
 cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
-chroot "${CHROOT}" /bin/sh -c "/setup.sh"
-
 cp -a configs/system/* "${CHROOT}/etc/systemd/system/"
 cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
 cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
 chmod 0600 "${CHROOT}/etc/NetworkManager/system-connections/"*
 cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
-
-
-# Сервисы и гаджеты
 cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/"
 cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
 chmod +x "${CHROOT}/etc/rc.local"
@@ -64,15 +59,21 @@ cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh sc
 cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
 cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
 
-# Размонтирование и очистка
-for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
+# Выполняем setup.sh внутри chroot
+chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 
+# Размонтирование
+for dir in proc sys dev/pts dev run; do 
+    umount "${CHROOT}/${dir}" 2>/dev/null || true
+done
+
+# Очистка
 rm -f "${CHROOT}/install_dnsproxy.sh" "${CHROOT}/setup.sh"
 : > "${CHROOT}/root/.bash_history"
 
-# Сеть и хостнейм
+# Настройка сети и hostname
 echo "${HOST_NAME}" > "${CHROOT}/etc/hostname"
-sed -i "/localhost/ s/$/ ${HOST_NAME}/" "${CHROOT}/etc/hts"
+sed -i "/localhost/ s/$/ ${HOST_NAME}/" "${CHROOT}/etc/hosts"
 printf "\n192.168.100.1\t%s\n" "${HOST_NAME}" >> "${CHROOT}/etc/hosts"
 
 # Ядро и DTB
@@ -83,6 +84,8 @@ cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
 rm -rf "${CHROOT}/boot/dtbs/qcom/"*
 cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
 
-# Финал
+# fstab
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
+
+# Создание архива
 tar cpzf rootfs.tgz -C rootfs .
