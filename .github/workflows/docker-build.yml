@@ -20,5 +20,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}/build-env:latest
+          # Мы принудительно переводим название в нижний регистр
+          tags:  ghcr.io/${{ github.repository_owner }}/openstick-builder/build-env:latest
