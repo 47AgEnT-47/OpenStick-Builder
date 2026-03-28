@@ -12,7 +12,7 @@ mmdebstrap --arch=arm64 \
     --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
     "${RELEASE}" "${CHROOT}"
 
-# Настройка репозиториев
+# Настройка репозиториев (один блок вместо трех)
 cat << EOF > "${CHROOT}/etc/apt/sources.list"
 deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
 deb http://deb.debian.org/debian-security ${RELEASE}-security main contrib non-free-firmware
@@ -31,13 +31,19 @@ DPkg::Options::="--force-confdef";
 DPkg::Options::="--force-confold";
 EOF
 
-# Монтирование
+# Монтирование (циклом быстрее и чище)
 for dir in proc sys dev dev/pts run; do
     mkdir -p "${CHROOT}/${dir}"
     mount --bind "/${dir}" "${CHROOT}/${dir}"
 done
 
-# Копирование всех конфигов и скриптов ДО выполнения setup.sh
+# Копируем только install_dnsproxy.sh и setup.sh в корень
+cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
+
+# Выполняем setup.sh (ОН УСТАНОВИТ ПАКЕТЫ И СОЗДАСТ ВСЕ ДИРЕКТОРИИ)
+chroot "${CHROOT}" /bin/sh -c "/setup.sh"
+
+# ТЕПЕРЬ копируем все конфиги (директории уже существуют после установки пакетов)
 mkdir -p "${CHROOT}/etc/systemd/system" \
          "${CHROOT}/etc/NetworkManager/system-connections" \
          "${CHROOT}/etc/NetworkManager/conf.d" \
@@ -45,8 +51,6 @@ mkdir -p "${CHROOT}/etc/systemd/system" \
          "${CHROOT}/boot/extlinux" \
          "${CHROOT}/lib/firmware/msm-firmware-loader"
 
-# Копируем все необходимые файлы
-cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
 cp -a configs/system/* "${CHROOT}/etc/systemd/system/"
 cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
 cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
@@ -59,19 +63,13 @@ cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh sc
 cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
 cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
 
-# Выполняем setup.sh внутри chroot
-chroot "${CHROOT}" /bin/sh -c "/setup.sh"
+# Размонтирование и очистка
+for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
 
-# Размонтирование
-for dir in proc sys dev/pts dev run; do 
-    umount "${CHROOT}/${dir}" 2>/dev/null || true
-done
-
-# Очистка
 rm -f "${CHROOT}/install_dnsproxy.sh" "${CHROOT}/setup.sh"
 : > "${CHROOT}/root/.bash_history"
 
-# Настройка сети и hostname
+# Сеть и хостнейм
 echo "${HOST_NAME}" > "${CHROOT}/etc/hostname"
 sed -i "/localhost/ s/$/ ${HOST_NAME}/" "${CHROOT}/etc/hosts"
 printf "\n192.168.100.1\t%s\n" "${HOST_NAME}" >> "${CHROOT}/etc/hosts"
@@ -84,8 +82,6 @@ cp configs/extlinux.conf "${CHROOT}/boot/extlinux/"
 rm -rf "${CHROOT}/boot/dtbs/qcom/"*
 cp dtbs/* "${CHROOT}/boot/dtbs/qcom/"
 
-# fstab
+# Финал
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > "${CHROOT}/etc/fstab"
-
-# Создание архива
 tar cpzf rootfs.tgz -C rootfs .
