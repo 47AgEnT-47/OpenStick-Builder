@@ -102,9 +102,6 @@ systemctl mask systemd-networkd
 systemctl mask wpa_supplicant
 systemctl mask systemd-networkd-wait-online.service
 
-chmod +x /usr/sbin/wifi-ap.sh
-chmod +x /usr/sbin/wifi-client.sh
-
 # Отключаем выключение по кнопке питания
 sed -i 's/^#HandlePowerKey=poweroff/HandlePowerKey=ignore/' /etc/systemd/logind.conf
 
