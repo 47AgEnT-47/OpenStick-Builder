@@ -39,6 +39,7 @@ done
 
 # Копирование конфигов и скриптов
 mkdir -p "${CHROOT}/etc/systemd/system" \
+         "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
          "${CHROOT}/etc/NetworkManager/system-connections" \
          "${CHROOT}/etc/NetworkManager/conf.d" \
          "${CHROOT}/etc/hostapd" \
