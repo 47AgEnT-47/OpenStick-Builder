@@ -11,12 +11,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      # Этот шаг создаст переменную env.IMAGE_NAME в нижнем регистре
-      - name: Prepare image name
-        run: |
-          echo "IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/openstick-builder/build-env:latest" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -29,5 +23,5 @@ jobs:
         with:
           context: .
           push: true
-          # Используем переменную, которую подготовили выше
-          tags: ${{ env.IMAGE_NAME }}
+          # Вписываем готовую ссылку маленькими буквами:
+          tags: ghcr.io/47agent-47/openstick-builder/build-env:latest
