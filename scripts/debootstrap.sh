@@ -39,7 +39,7 @@ done
 
 # Копирование конфигов и скриптов
 mkdir -p "${CHROOT}/etc/systemd/system" \
-         "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
+         "${CHROOT}/etc/dnsmasq.d/"
          "${CHROOT}/etc/NetworkManager/system-connections" \
          "${CHROOT}/etc/NetworkManager/conf.d" \
          "${CHROOT}/etc/hostapd" \
@@ -54,7 +54,7 @@ cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
 cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
 
 # Сервисы и гаджеты
-cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/dhcp.conf"
+cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/"
 cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
 chmod +x "${CHROOT}/etc/rc.local"
 cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
