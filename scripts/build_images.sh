@@ -30,8 +30,10 @@ mkdir -p mnt/dev/pts mnt/proc
 mount -t proc /proc mnt/proc
 mount -o bind /dev/pts mnt/dev/pts
 
-# --- Очистка пакетов (МАКСИМАЛЬНАЯ ЖАДНОСТЬ) ---
-# Удаляем компиляторы, лишние языки, локали и мусорные утилиты
+# Удаляем мусор
+dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
+
+chroot mnt apt-get update -y
 chroot mnt apt-get purge -y \
     build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
@@ -40,6 +42,7 @@ chroot mnt apt-get purge -y \
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
 
+dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
 # --- Глубокая ручная очистка (док, локали, кэши) ---
 find mnt/usr/share/locale/ -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
 rm -rf mnt/usr/include/* \
