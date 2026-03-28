@@ -46,6 +46,7 @@ mkdir -p "${CHROOT}/etc/systemd/system" \
          "${CHROOT}/lib/firmware/msm-firmware-loader"
 
 # Выполнение настройки в chroot
+cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
 chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 
 cp -a configs/system/* "${CHROOT}/etc/systemd/system/"
@@ -53,7 +54,7 @@ cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
 cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
 chmod 0600 "${CHROOT}/etc/NetworkManager/system-connections/"*
 cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
-cp configs/install_dnsproxy.sh scripts/setup.sh "${CHROOT}/"
+
 
 # Сервисы и гаджеты
 cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/"
