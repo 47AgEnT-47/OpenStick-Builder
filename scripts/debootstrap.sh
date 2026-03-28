@@ -39,12 +39,14 @@ done
 
 # Копирование конфигов и скриптов
 mkdir -p "${CHROOT}/etc/systemd/system" \
-         "${CHROOT}/etc/dnsmasq.d/"
          "${CHROOT}/etc/NetworkManager/system-connections" \
          "${CHROOT}/etc/NetworkManager/conf.d" \
          "${CHROOT}/etc/hostapd" \
          "${CHROOT}/boot/extlinux" \
          "${CHROOT}/lib/firmware/msm-firmware-loader"
+
+# Выполнение настройки в chroot
+chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 
 cp -a configs/system/* "${CHROOT}/etc/systemd/system/"
 cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
@@ -60,9 +62,6 @@ chmod +x "${CHROOT}/etc/rc.local"
 cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
 cp configs/msm8916-usb-gadget.conf "${CHROOT}/etc/"
 cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
-
-# Выполнение настройки в chroot
-chroot "${CHROOT}" /bin/sh -c "/setup.sh"
 
 # Размонтирование и очистка
 for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
