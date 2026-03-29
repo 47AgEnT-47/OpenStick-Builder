@@ -53,15 +53,24 @@ echo "--- Packages size AFTER cleanup ---"
 chroot "$MNT_DIR" dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
 
 # --- Очистка файлов ---
-find "$MNT_DIR/usr/share/locale/" -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
-rm -rf "$MNT_DIR/usr/include/*" \
-       "$MNT_DIR/usr/share/doc/*" \
-       "$MNT_DIR/usr/share/man/*" \
-       "$MNT_DIR/var/lib/apt/lists/*" \
-       "$MNT_DIR/var/cache/apt/archives/*" \
-       "$MNT_DIR/etc/resolv.conf"
+find mnt/usr/share/locale/ -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
+rm -rf "$MNT_DIR/usr/include/"* \
+       "$MNT_DIR/usr/share/doc/"* \
+       "$MNT_DIR/usr/share/man/"* \
+       "$MNT_DIR/usr/share/info/"* \
+       "$MNT_DIR/usr/share/common-licenses/"* \
+       "$MNT_DIR/var/lib/apt/lists/"* \
+       "$MNT_DIR/var/cache/apt/archives/"* \
+       "$MNT_DIR/var/log/"* \
+       "$MNT_DIR/root/.cache" \
+       "$MNT_DIR/tmp/"* \
+       "$MNTDIR/var/tmp/"*
 
-# --- РАЗМОНТИРОВАНИЕ (FIX) ---
+# Удаление статических библиотек и специфических путей
+find "$MNT_DIR/usr/lib" -name "*.a" -delete
+find "$MNT_DIR/usr/lib" -name "pkgconfig" -type d -exec rm -rf {} +
+
+# --- РАЗМОНТИРОВАНИЕ ---
 # Сначала вложенные, потом корень
 for dir in run dev/pts dev sys proc; do
     umount -l "$MNT_DIR/$dir" || true
