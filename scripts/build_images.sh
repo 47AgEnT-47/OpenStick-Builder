@@ -24,7 +24,10 @@ tar xpf rootfs.tgz -C "$MNT_DIR" --exclude='./boot/*' --exclude='./root/*' --exc
 cp -a dist/* "$MNT_DIR"
 
 # --- Настройка сети и системных директорий (FIX) ---
-cp /etc/resolv.conf "$MNT_DIR/etc/resolv.conf"
+# Удаляем старый файл/ссылку и пишем DNS Google напрямую
+rm -f "$MNT_DIR/etc/resolv.conf"
+echo "nameserver 8.8.8.8" > "$MNT_DIR/etc/resolv.conf"
+echo "nameserver 1.1.1.1" >> "$MNT_DIR/etc/resolv.conf"
 
 for dir in proc sys dev dev/pts run; do
     mkdir -p "$MNT_DIR/$dir"
