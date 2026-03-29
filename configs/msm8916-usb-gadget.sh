@@ -1,109 +1,372 @@
 #!/bin/bash
-# MSM8916 USB Gadget - Compact & Robust
-GADGET="/sys/kernel/config/usb_gadget/msm8916"
-CFG="$GADGET/configs/c.1"
-STR="$GADGET/strings/0x409"
+# Main script for MSM8916 USB Gadget
 
-# Загрузка конфига и дефолты
-[ -f /etc/msm8916-usb-gadget.conf ] && . /etc/msm8916-usb-gadget.conf
+CONFIG_FILE="/etc/msm8916-usb-gadget.conf"
+GADGET_PATH="/sys/kernel/config/usb_gadget/msm8916"
+
+# Load configuration
+[ -f "${CONFIG_FILE}" ] && . "${CONFIG_FILE}"
+
+# Set defaults if not configured
 : ${USB_VENDOR_ID:="0x1d6b"}
 : ${USB_PRODUCT_ID:="0x0104"}
 : ${USB_DEVICE_VERSION:="0x0100"}
-: ${UMS_IMAGE:="/root/usb_share.img"}
+: ${USB_MANUFACTURER:="MSM8916"}
+: ${USB_PRODUCT:="USB Gadget"}
 
-# Функция очистки
-cleanup() {
-    [ -d "$GADGET" ] || return 0
-    echo "" > "$GADGET/UDC" 2>/dev/null
-    find "$CFG" -maxdepth 1 -type l -delete 2>/dev/null
-    [ -d "$GADGET/os_desc/c.1" ] && rm -f "$GADGET/os_desc/c.1" 2>/dev/null
-    find "$GADGET/functions" -maxdepth 1 -mindepth 1 -type d -exec rmdir {} + 2>/dev/null
-    find "$GADGET/configs" -maxdepth 1 -mindepth 1 -type d -exec rmdir {} + 2>/dev/null
-    rmdir "$GADGET/strings/0x409" 2>/dev/null
-    rmdir "$GADGET" 2>/dev/null
+# Helper functions
+log() {
+    logger -t msm8916-usb-gadget "$@"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $@"
 }
 
-# Генерация MAC
-gen_mac() {
-    local h=$(echo "$(cat /etc/machine-id 2>/dev/null || echo "00000000-0000-0000-0000-000000000000")$1" | md5sum | cut -c1-12)
-    echo "02:${h:2:2}:${h:4:2}:${h:6:2}:${h:8:2}:${h:10:2}"
-}
-
-setup_net() {
-    local type=$1 func="$GADGET/functions/$2"
-    mkdir -p "$func"
-    gen_mac "$type-host" > "$func/host_addr"
-    gen_mac "$type-dev" > "$func/dev_addr"
-    
-    if [ "$type" = "rndis" ]; then
-        echo "RNDIS" > "$func/os_desc/interface.rndis/compatible_id"
-        echo "5162001" > "$func/os_desc/interface.rndis/sub_compatible_id"
-        ln -sf "$CFG" "$GADGET/os_desc/c.1"
-    fi
-    ln -sf "$func" "$CFG"
-}
-
-cleanup
-modprobe libcomposite
-mkdir -p "$STR" "$CFG/strings/0x409"
-
-# Основные параметры
-echo "$USB_VENDOR_ID" > "$GADGET/idVendor"
-echo "$USB_PRODUCT_ID" > "$GADGET/idProduct"
-echo "$USB_DEVICE_VERSION" > "$GADGET/bcdDevice"
-echo "0xEF" > "$GADGET/bDeviceClass"
-echo "0x02" > "$GADGET/bDeviceSubClass"
-echo "0x01" > "$GADGET/bDeviceProtocol"
-
-# Строки
-serial=$(cat /etc/machine-id 2>/dev/null | cut -c1-16 || echo "0000000000000000")
-echo "$serial" > "$STR/serialnumber"
-echo "MSM8916" > "$STR/manufacturer"
-echo "USB Gadget" > "$STR/product"
-
-# Настройка функций
-echo 1 > "$GADGET/os_desc/use"
-echo "MSFT100" > "$GADGET/os_desc/qw_sign"
-
-[ "$ENABLE_RNDIS" = "1" ] && setup_net "rndis" "rndis.usb0"
-[ "$ENABLE_NCM"   = "1" ] && setup_net "ncm"   "ncm.usb0"
-[ "$ENABLE_ECM"   = "1" ] && setup_net "ecm"   "ecm.usb0"
-[ "$ENABLE_ACM"   = "1" ] && { mkdir -p "$GADGET/functions/acm.GS0"; ln -sf "$GADGET/functions/acm.GS0" "$CFG"; }
-
-if [ "$ENABLE_UMS" = "1" ]; then
-    if [ ! -f "$UMS_IMAGE" ]; then
-        echo "Warning: UMS image $UMS_IMAGE not found" >&2
-    else
-        mkdir -p "$GADGET/functions/mass_storage.0"
-        echo "${UMS_READONLY:-0}" > "$GADGET/functions/mass_storage.0/lun.0/ro"
-        echo "$UMS_IMAGE" > "$GADGET/functions/mass_storage.0/lun.0/file"
-        ln -sf "$GADGET/functions/mass_storage.0" "$CFG"
-    fi
-fi
-
-# Конфигурация
-echo "0xc0" > "$CFG/bmAttributes"
-echo "MSM8916 Config" > "$CFG/strings/0x409/configuration"
-
-# Активация
-UDC=$(ls /sys/class/udc/ 2>/dev/null | head -n1)
-if [ -z "$UDC" ]; then
-    echo "ERROR: No UDC device found" >&2
+error() {
+    log "ERROR: $@"
     exit 1
-fi
-echo "$UDC" > "$GADGET/UDC" || exit 1
+}
 
-# Поднятие сети (читаем реальное имя интерфейса)
-sleep 1
-if [ "$ENABLE_RNDIS" = "1" ] && [ -f "$GADGET/functions/rndis.usb0/ifname" ]; then
-    ifname=$(cat "$GADGET/functions/rndis.usb0/ifname")
-    ip link set "$ifname" up 2>/dev/null
-elif [ "$ENABLE_ECM" = "1" ] && [ -f "$GADGET/functions/ecm.usb0/ifname" ]; then
-    ifname=$(cat "$GADGET/functions/ecm.usb0/ifname")
-    ip link set "$ifname" up 2>/dev/null
-elif [ "$ENABLE_NCM" = "1" ] && [ -f "$GADGET/functions/ncm.usb0/ifname" ]; then
-    ifname=$(cat "$GADGET/functions/ncm.usb0/ifname")
-    ip link set "$ifname" up 2>/dev/null
-else
-    ip link set usb0 up 2>/dev/null || ip link set eth0 up 2>/dev/null
-fi
+find_udc_device() {
+    if [ -n "${UDC_DEVICE}" ]; then
+        echo "${UDC_DEVICE}"
+        return
+    fi
+
+    # MSM8916 typically uses ci_hdrc.0
+    if [ -e "/sys/class/udc/ci_hdrc.0" ]; then
+        echo "ci_hdrc.0"
+        return
+    fi
+
+    # Fallback: first available UDC
+    udc=$(ls /sys/class/udc/ 2>/dev/null | head -1)
+    if [ -n "${udc}" ]; then
+        echo "${udc}"
+    else
+        error "No UDC device found"
+    fi
+}
+
+set_otg_mode() {
+    local mode="$1"
+    local udc_device="$(find_udc_device)"
+    local role_file="/sys/class/udc/${udc_device}/device/role"
+    
+    if [ ! -f "${role_file}" ]; then
+        error "OTG role control not available at ${role_file}"
+    fi
+    
+    log "Setting OTG mode to: ${mode}"
+    echo "${mode}" > "${role_file}" || error "Failed to set OTG mode to ${mode}"
+}
+
+get_serial_number() {
+    # Use machine-id as the source of uniqueness
+    if [ -f /etc/machine-id ]; then
+        sha256sum < /etc/machine-id | cut -d' ' -f1 | cut -c1-16
+    else
+        # Fallback to random if machine-id doesn't exist
+        echo "$(date +%s)-$(shuf -i 1000-9999 -n 1)"
+    fi
+}
+
+generate_mac_address() {
+    local prefix="$1"
+    local serial="$(get_serial_number)"
+    local hash="$(echo "${serial}${prefix}" | md5sum | cut -c1-12)"
+
+    # Extract bytes
+    local b1="${hash:0:2}"
+    local b2="${hash:2:2}"
+    local b3="${hash:4:2}"
+    local b4="${hash:6:2}"
+    local b5="${hash:8:2}"
+    local b6="${hash:10:2}"
+
+    # Set locally administered, unicast
+    b1="$(printf '%02x' $((0x${b1} & 0xfe | 0x02)))"
+
+    echo "${b1}:${b2}:${b3}:${b4}:${b5}:${b6}"
+}
+
+load_mac_addresses() {
+    # Generate new MAC addresses for enabled functions
+    [ "${ENABLE_RNDIS}" = "1" ] && {
+        MAC_RNDIS_HOST="$(generate_mac_address "rndis-host")"
+        MAC_RNDIS_DEV="$(generate_mac_address "rndis-dev")"
+    }
+    [ "${ENABLE_ECM}" = "1" ] && {
+        MAC_ECM_HOST="$(generate_mac_address "ecm-host")"
+        MAC_ECM_DEV="$(generate_mac_address "ecm-dev")"
+    }
+    [ "${ENABLE_NCM}" = "1" ] && {
+        MAC_NCM_HOST="$(generate_mac_address "ncm-host")"
+        MAC_NCM_DEV="$(generate_mac_address "ncm-dev")"
+    }
+}
+
+create_storage_image() {
+    local image_path="$1"
+    local size="${UMS_IMAGE_SIZE:-100M}"
+
+    log "Creating storage image: ${image_path} (${size})"
+
+    # Create the raw image file
+    truncate -s "${size}" "${image_path}" || \
+        dd if=/dev/zero of="${image_path}" bs=1M count="${size%M}"
+
+    log "Storage image created successfully (raw format)"
+}
+
+setup_gadget() {
+    log "Setting up USB gadget"
+
+    # Check if OTG host mode is requested
+    if [ "${ENABLE_OTG_HOST}" = "1" ]; then
+        log "WARNING: OTG host mode requested - this will disable gadget functionality!"
+        log "Make sure you have WiFi or LTE connectivity available for remote access."
+        
+        # Tear down any existing gadget first
+        teardown_gadget
+        
+        # Set to host mode
+        set_otg_mode "host"
+        log "USB controller set to host mode"
+        return
+    fi
+
+    # Load required modules
+    modprobe libcomposite
+
+    # Mount configfs if not already mounted
+    if ! mountpoint -q /sys/kernel/config; then
+        log "Mounting configfs"
+        mount -t configfs none /sys/kernel/config
+    fi
+
+    # Create storage image if needed and UMS is enabled
+    if [ "${ENABLE_UMS}" = "1" ] && [ ! -f "${UMS_IMAGE}" ]; then
+        mkdir -p "$(dirname "${UMS_IMAGE}")"
+        create_storage_image "${UMS_IMAGE}"
+    fi
+
+    # Create gadget
+    mkdir -p "${GADGET_PATH}" || error "Failed to create gadget directory"
+    cd "${GADGET_PATH}" || error "Failed to change to gadget directory"
+
+    # Basic device info
+    echo "${USB_VENDOR_ID}" > idVendor || error "Failed to set vendor ID"
+    echo "${USB_PRODUCT_ID}" > idProduct || error "Failed to set product ID"
+    echo "${USB_DEVICE_VERSION}" > bcdDevice || error "Failed to set device version"
+
+    # Composite device descriptors
+    echo "0xEF" > bDeviceClass
+    echo "0x02" > bDeviceSubClass
+    echo "0x01" > bDeviceProtocol
+
+    # Strings
+    mkdir -p strings/0x409
+    echo "$(get_serial_number)" > strings/0x409/serialnumber
+    echo "${USB_MANUFACTURER}" > strings/0x409/manufacturer
+    echo "${USB_PRODUCT}" > strings/0x409/product
+
+    # Load MAC addresses
+    load_mac_addresses
+
+    local cfg="configs/c.1"
+    mkdir -p "${cfg}/strings/0x409"
+    local cfg_str=""
+    local has_wakeup=0
+
+    # RNDIS (must be first for Windows compatibility)
+    if [ "${ENABLE_RNDIS}" = "1" ]; then
+        log "Enabling RNDIS"
+        cfg_str="${cfg_str}+RNDIS"
+
+        mkdir -p functions/rndis.usb0
+        echo "${MAC_RNDIS_HOST}" > functions/rndis.usb0/host_addr
+        echo "${MAC_RNDIS_DEV}" > functions/rndis.usb0/dev_addr
+        ln -sf functions/rndis.usb0 "${cfg}"
+
+        # Windows compatibility
+        echo 1 > os_desc/use
+        echo 0xcd > os_desc/b_vendor_code
+        echo MSFT100 > os_desc/qw_sign
+        echo RNDIS > functions/rndis.usb0/os_desc/interface.rndis/compatible_id
+        echo 5162001 > functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id
+        ln -sf "${cfg}" os_desc
+
+        has_wakeup=1
+    fi
+
+    # ACM Serial ports
+    if [ "${ENABLE_ACM}" = "1" ]; then
+        log "Enabling ACM serial (${ACM_COUNT:-1} ports)"
+
+        # Create multiple ACM ports if requested
+        acm_count="${ACM_COUNT:-1}"
+        for i in $(seq 0 $((acm_count - 1))); do
+            cfg_str="${cfg_str}+ACM"
+            mkdir -p functions/acm.GS${i}
+            # Link directly to config
+            ln -sf functions/acm.GS${i} "${cfg}"
+        done
+    fi
+
+    # ECM
+    if [ "${ENABLE_ECM}" = "1" ] && [ "${ENABLE_NCM}" != "1" ]; then
+        log "Enabling ECM"
+        cfg_str="${cfg_str}+ECM"
+
+        mkdir -p functions/ecm.usb0
+        echo "${MAC_ECM_HOST}" > functions/ecm.usb0/host_addr
+        echo "${MAC_ECM_DEV}" > functions/ecm.usb0/dev_addr
+        ln -sf functions/ecm.usb0 "${cfg}"
+
+        has_wakeup=1
+    fi
+
+    # NCM (preferred over ECM)
+    if [ "${ENABLE_NCM}" = "1" ]; then
+        log "Enabling NCM"
+        cfg_str="${cfg_str}+NCM"
+
+        mkdir -p functions/ncm.usb0
+        echo "${MAC_NCM_HOST}" > functions/ncm.usb0/host_addr
+        echo "${MAC_NCM_DEV}" > functions/ncm.usb0/dev_addr
+        ln -sf functions/ncm.usb0 "${cfg}"
+
+        has_wakeup=1
+    fi
+
+    # Mass Storage
+    if [ "${ENABLE_UMS}" = "1" ]; then
+        if [ ! -f "${UMS_IMAGE}" ]; then
+            log "Warning: UMS image ${UMS_IMAGE} not found"
+        else
+            log "Enabling UMS"
+            cfg_str="${cfg_str}+UMS"
+
+            mkdir -p functions/mass_storage.0
+            echo "${UMS_READONLY:-0}" > functions/mass_storage.0/lun.0/ro
+            echo "${UMS_IMAGE}" > functions/mass_storage.0/lun.0/file
+            ln -sf functions/mass_storage.0 "${cfg}"
+        fi
+    fi
+
+    # Set configuration attributes
+    if [ "${has_wakeup}" = "1" ]; then
+        echo "0xe0" > "${cfg}/bmAttributes"  # Self-powered with remote wakeup
+    else
+        echo "0xc0" > "${cfg}/bmAttributes"  # Self-powered
+    fi
+
+    echo "${cfg_str:1}" > "${cfg}/strings/0x409/configuration"
+
+    # Enable gadget
+    local udc="$(find_udc_device)"
+    log "Using UDC: ${udc}"
+    echo "${udc}" > UDC || error "Failed to enable UDC"
+
+    # Поднять usb0
+    sleep 1
+    if [ "${ENABLE_RNDIS}" = "1" ] && [ -f functions/rndis.usb0/ifname ]; then
+        ifname=$(cat functions/rndis.usb0/ifname)
+        ip link set "$ifname" up
+    fi
+    
+}
+
+teardown_gadget() {
+    log "Tearing down USB gadget"
+
+    # Check if configfs is mounted
+    if ! mountpoint -q /sys/kernel/config; then
+        log "Configfs not mounted, nothing to tear down"
+        return
+    fi
+
+    # Check if gadget directory exists
+    if [ ! -d "/sys/kernel/config/usb_gadget" ]; then
+        log "USB gadget configfs not available"
+        return
+    fi
+
+    cd /sys/kernel/config/usb_gadget
+
+    if [ ! -d msm8916 ]; then
+        return
+    fi
+
+    cd msm8916
+
+    # Disable gadget
+    echo "" > UDC || true
+
+    # УБРАТЬ удаление из bridge — больше не нужно
+
+    # Remove configuration - use wildcard to catch all links
+    rm -f configs/c.1/* 2>/dev/null || true
+    rm -f os_desc/c.1 2>/dev/null || true
+    rmdir configs/c.1/strings/0x409 2>/dev/null || true
+    rmdir configs/c.1 2>/dev/null || true
+
+    # Remove functions
+    for func in functions/*; do
+        [ -d "${func}" ] && rmdir "${func}" 2>/dev/null || true
+    done
+
+    # Remove strings
+    rmdir strings/0x409 2>/dev/null || true
+
+    # Remove gadget
+    cd ..
+    rmdir msm8916 2>/dev/null || true
+}
+
+status() {
+    # Check OTG mode status
+    local udc_device="$(find_udc_device)"
+    local role_file="/sys/class/udc/${udc_device}/device/role"
+    
+    if [ -f "${role_file}" ]; then
+        local current_role="$(cat "${role_file}" 2>/dev/null || echo "unknown")"
+        echo "OTG Role: ${current_role}"
+        
+        if [ "${current_role}" = "host" ]; then
+            echo "USB is in HOST mode - gadget functions are disabled"
+            return 0
+        fi
+    fi
+
+    if [ -d "${GADGET_PATH}" ] && [ -s "${GADGET_PATH}/UDC" ]; then
+        echo "USB Gadget is active"
+        echo "UDC: $(cat ${GADGET_PATH}/UDC)"
+        echo "Functions:"
+        ls -1 ${GADGET_PATH}/configs/c.1/ 2>/dev/null | grep -v strings
+        return 0
+    else
+        echo "USB Gadget is inactive"
+        return 1
+    fi
+}
+
+case "$1" in
+    start)
+        teardown_gadget
+        setup_gadget
+        ;;
+    stop)
+        teardown_gadget
+        ;;
+    restart)
+        teardown_gadget
+        setup_gadget
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
