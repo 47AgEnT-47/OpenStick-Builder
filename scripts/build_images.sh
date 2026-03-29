@@ -26,9 +26,10 @@ tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='.
 cp -a dist/* mnt
 
 # Монтирование системных директорий для работы apt
-mkdir -p mnt/dev/pts mnt/proc
-mount -t proc /proc mnt/proc
-mount -o bind /dev/pts mnt/dev/pts
+for dir in proc sys dev dev/pts run; do
+    mkdir -p "${CHROOT}/${dir}"
+    mount --bind "/${dir}" "${CHROOT}/${dir}"
+done
 
 # Удаляем мусор
 chroot mnt dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
