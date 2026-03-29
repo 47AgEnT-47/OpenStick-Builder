@@ -65,6 +65,10 @@ cp configs/hostapd.conf "${CHROOT}/etc/hostapd/"
 chmod +x ${CHROOT}/usr/sbin/wifi-ap.sh
 chmod +x ${CHROOT}/usr/sbin/wifi-client.sh
 
+cat > "${CHROOT}/etc/udev/rules.d/99-override-nm-unmanaged.rules" << 'EOF'
+ENV{INTERFACE}=="usb0", ENV{NM_UNMANAGED}="0"
+EOF
+
 # Размонтирование и очистка
 for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
 
