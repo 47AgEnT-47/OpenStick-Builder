@@ -63,10 +63,7 @@ find mnt/usr/lib -name "*.a" -delete
 find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
 
 # Размонтирование в обратном порядке
-umount mnt/dev/pts
-umount mnt/proc
-umount mnt
-
+for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
 # --- Оптимизация и сжатие ---
 shrink_raw() {
     FILE=$1
