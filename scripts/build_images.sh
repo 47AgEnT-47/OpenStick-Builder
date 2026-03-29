@@ -1,6 +1,5 @@
 #!/bin/sh -e
 
-# Точка монтирования для работы
 MNT_DIR="$(pwd)/mnt"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -24,8 +23,7 @@ mount rootfs.raw "$MNT_DIR"
 tar xpf rootfs.tgz -C "$MNT_DIR" --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
 cp -a dist/* "$MNT_DIR"
 
-# --- Настройка сети и системных директорий ---
-# Копируем DNS с хоста, иначе apt не найдет репозитории
+# --- Настройка сети и системных директорий (FIX) ---
 cp /etc/resolv.conf "$MNT_DIR/etc/resolv.conf"
 
 for dir in proc sys dev dev/pts run; do
@@ -34,6 +32,10 @@ for dir in proc sys dev dev/pts run; do
 done
 
 # --- Работа внутри CHROOT ---
+# Твой вывод размеров ДО
+echo "--- Packages size BEFORE cleanup ---"
+chroot "$MNT_DIR" dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
+
 chroot "$MNT_DIR" apt-get update -y
 chroot "$MNT_DIR" apt-get purge -y \
     libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
@@ -43,23 +45,27 @@ chroot "$MNT_DIR" apt-get purge -y \
 chroot "$MNT_DIR" apt-get autoremove -y --purge
 chroot "$MNT_DIR" apt-get clean
 
-# --- Очистка (док, локали, кэши) ---
+# Твой вывод размеров ПОСЛЕ
+echo "--- Packages size AFTER cleanup ---"
+chroot "$MNT_DIR" dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
+
+# --- Очистка файлов ---
 find "$MNT_DIR/usr/share/locale/" -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
 rm -rf "$MNT_DIR/usr/include/*" \
        "$MNT_DIR/usr/share/doc/*" \
        "$MNT_DIR/usr/share/man/*" \
        "$MNT_DIR/var/lib/apt/lists/*" \
        "$MNT_DIR/var/cache/apt/archives/*" \
-       "$MNT_DIR/etc/resolv.conf" # Удаляем DNS хоста перед финализацией
+       "$MNT_DIR/etc/resolv.conf"
 
-# --- РАЗМОНТИРОВАНИЕ (Важен обратный порядок) ---
-# Сначала виртуальные системы, потом сам образ
+# --- РАЗМОНТИРОВАНИЕ (FIX) ---
+# Сначала вложенные, потом корень
 for dir in run dev/pts dev sys proc; do
     umount -l "$MNT_DIR/$dir" || true
 done
 umount -l "$MNT_DIR"
 
-# --- Оптимизация (теперь образы свободны) ---
+# --- Оптимизация (FIX: выполняется на ОТМОНТИРОВАННОМ образе) ---
 shrink_raw() {
     FILE=$1
     e2fsck -fDy "$FILE"
@@ -72,8 +78,9 @@ shrink_raw() {
 shrink_raw rootfs.raw
 shrink_raw boot.raw
 
-# Создание разреженных образов
+# Итоги
+ls -lh rootfs.raw boot.raw
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
 
-echo "Done! Images are in 'files/' directory."
+echo "Done! Check 'files/' folder."
