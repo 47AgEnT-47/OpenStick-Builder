@@ -7,7 +7,7 @@ HOST_NAME=${HOST_NAME:-openstick}
 rm -rf "${CHROOT}"
 
 echo "Using mmdebstrap for fast bootstrap..."
-mmdebstrap --arch=arm64 \
+mmdebstrap --mode=proot --arch=arm64 \
     --include=systemd,udev,dbus,apt,ca-certificates \
     --keyring=/usr/share/keyrings/debian-archive-keyring.gpg \
     "${RELEASE}" "${CHROOT}"
