@@ -31,7 +31,7 @@ mount -t proc /proc mnt/proc
 mount -o bind /dev/pts mnt/dev/pts
 
 # Удаляем мусор
-dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
+chroot mnt dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
 
 chroot mnt apt-get update -y
 chroot mnt apt-get purge -y \
@@ -42,7 +42,7 @@ chroot mnt apt-get purge -y \
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
 
-dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
+chroot mnt dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
 # --- Глубокая ручная очистка (док, локали, кэши) ---
 find mnt/usr/share/locale/ -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
 rm -rf mnt/usr/include/* \
