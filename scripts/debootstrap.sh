@@ -56,6 +56,7 @@ cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
 cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
 chmod 0600 "${CHROOT}/etc/NetworkManager/system-connections/"*
 cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
+cp -a configs/dhcp.conf "${CHROOT}/etc/dnsmasq.d/"
 cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
 chmod +x "${CHROOT}/etc/rc.local"
 cp -a configs/msm8916-usb-gadget.sh configs/wifi-ap.sh configs/wifi-client.sh scripts/msm-firmware-loader.sh "${CHROOT}/usr/sbin/"
