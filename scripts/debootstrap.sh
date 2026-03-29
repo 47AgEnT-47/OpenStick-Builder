@@ -19,6 +19,9 @@ deb http://deb.debian.org/debian-security ${RELEASE}-security main contrib non-f
 deb http://deb.debian.org/debian ${RELEASE}-updates main contrib non-free-firmware
 EOF
 
+echo "nameserver 8.8.8.8" | sudo tee -a ${CHROOT}/etc/resolv.conf
+echo "nameserver 1.1.1.1" | sudo tee -a ${CHROOT}/etc/resolv.conf
+
 # Оптимизация APT
 cat << EOF > "${CHROOT}/etc/apt/apt.conf.d/99speedup"
 APT::Acquire::Retries "3";
