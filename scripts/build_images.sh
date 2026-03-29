@@ -35,9 +35,9 @@ chroot mnt dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{
 
 chroot mnt apt-get update -y
 chroot mnt apt-get purge -y \
-    build-essential libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
+    libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
-    libc-l10n debconf-i18n python* || true
+    libc-l10n debconf-i18n || true
 
 chroot mnt apt-get autoremove -y --purge
 chroot mnt apt-get clean
