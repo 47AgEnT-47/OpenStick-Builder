@@ -1,70 +1,65 @@
 #!/bin/sh -e
 
-CHROOT=${CHROOT=$(pwd)/rootfs}
+# Точка монтирования для работы
+MNT_DIR="$(pwd)/mnt"
 export DEBIAN_FRONTEND=noninteractive
 
 # Подготовка папок
 rm -f rootfs.raw boot.raw
-mkdir -p files mnt
+mkdir -p files "$MNT_DIR"
 
 # --- Сборка BOOT ---
 dd if=/dev/zero of=boot.raw bs=1M count=64 status=none
 mkfs.ext2 -F boot.raw
-mount boot.raw mnt
-tar xf rootfs.tgz -C mnt ./boot --exclude='./boot/linux.efi' --strip-components=2
-umount mnt
+mount boot.raw "$MNT_DIR"
+tar xf rootfs.tgz -C "$MNT_DIR" ./boot --exclude='./boot/linux.efi' --strip-components=2
+umount "$MNT_DIR"
 
 # --- Сборка ROOTFS ---
 dd if=/dev/zero of=rootfs.raw bs=1M count=1536 status=none
 mkfs.ext4 -F rootfs.raw
-mount rootfs.raw mnt
+mount rootfs.raw "$MNT_DIR"
 
-# Распаковка (исключаем лишнее сразу)
-tar xpf rootfs.tgz -C mnt --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
+# Распаковка
+tar xpf rootfs.tgz -C "$MNT_DIR" --exclude='./boot/*' --exclude='./root/*' --exclude='./dev/*'
+cp -a dist/* "$MNT_DIR"
 
-# Установка ваших файлов
-cp -a dist/* mnt
+# --- Настройка сети и системных директорий ---
+# Копируем DNS с хоста, иначе apt не найдет репозитории
+cp /etc/resolv.conf "$MNT_DIR/etc/resolv.conf"
 
-# Монтирование системных директорий для работы apt
 for dir in proc sys dev dev/pts run; do
-    mkdir -p "${CHROOT}/${dir}"
-    mount --bind "/${dir}" "${CHROOT}/${dir}"
+    mkdir -p "$MNT_DIR/$dir"
+    mount --bind "/$dir" "$MNT_DIR/$dir"
 done
 
-# Удаляем мусор
-chroot mnt dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
-
-chroot mnt apt-get update -y
-chroot mnt apt-get purge -y \
+# --- Работа внутри CHROOT ---
+chroot "$MNT_DIR" apt-get update -y
+chroot "$MNT_DIR" apt-get purge -y \
     libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
     perl perl-modules-5.40 libperl5.40 \
     libc-l10n debconf-i18n || true
 
-chroot mnt apt-get autoremove -y --purge
-chroot mnt apt-get clean
+chroot "$MNT_DIR" apt-get autoremove -y --purge
+chroot "$MNT_DIR" apt-get clean
 
-chroot mnt dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
-# --- Глубокая ручная очистка (док, локали, кэши) ---
-find mnt/usr/share/locale/ -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
-rm -rf mnt/usr/include/* \
-       mnt/usr/share/doc/* \
-       mnt/usr/share/man/* \
-       mnt/usr/share/info/* \
-       mnt/usr/share/common-licenses/* \
-       mnt/var/lib/apt/lists/* \
-       mnt/var/cache/apt/archives/* \
-       mnt/var/log/* \
-       mnt/root/.cache \
-       mnt/tmp/* \
-       mnt/var/tmp/*
+# --- Очистка (док, локали, кэши) ---
+find "$MNT_DIR/usr/share/locale/" -maxdepth 1 -mindepth 1 ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} +
+rm -rf "$MNT_DIR/usr/include/*" \
+       "$MNT_DIR/usr/share/doc/*" \
+       "$MNT_DIR/usr/share/man/*" \
+       "$MNT_DIR/var/lib/apt/lists/*" \
+       "$MNT_DIR/var/cache/apt/archives/*" \
+       "$MNT_DIR/etc/resolv.conf" # Удаляем DNS хоста перед финализацией
 
-# Удаление статических библиотек и специфических путей
-find mnt/usr/lib -name "*.a" -delete
-find mnt/usr/lib -name "pkgconfig" -type d -exec rm -rf {} +
+# --- РАЗМОНТИРОВАНИЕ (Важен обратный порядок) ---
+# Сначала виртуальные системы, потом сам образ
+for dir in run dev/pts dev sys proc; do
+    umount -l "$MNT_DIR/$dir" || true
+done
+umount -l "$MNT_DIR"
 
-# Размонтирование в обратном порядке
-for dir in proc sys dev/pts dev run; do umount "${CHROOT}/${dir}"; done
-# --- Оптимизация и сжатие ---
+# --- Оптимизация (теперь образы свободны) ---
 shrink_raw() {
     FILE=$1
     e2fsck -fDy "$FILE"
@@ -77,11 +72,7 @@ shrink_raw() {
 shrink_raw rootfs.raw
 shrink_raw boot.raw
 
-# Вывод размеров
-echo "Final sizes after resize:"
-ls -lh rootfs.raw boot.raw
-
-# Создание разреженных образов (Android Sparse)
+# Создание разреженных образов
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
 
