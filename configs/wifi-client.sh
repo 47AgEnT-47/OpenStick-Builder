@@ -1,7 +1,3 @@
 #!/bin/bash
-systemctl stop hostapd
-systemctl mask hostapd
-systemctl unmask wpa_supplicant
-systemctl restart wpa_supplicant
-nmcli dev set wlan0 managed yes
-nmcli con up wlan0
+nmcli connection delete hotspot 2>/dev/null
+nmcli device wifi connect "HONOR X8c" password "12345678" ifname wlan0

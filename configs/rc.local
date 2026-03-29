@@ -29,4 +29,6 @@ cleanup_wwan() {
 }
 
 main
+
+/usr/sbin/wifi-ap.sh
 exit 0
