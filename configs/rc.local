@@ -30,5 +30,9 @@ cleanup_wwan() {
 
 main
 
-/usr/sbin/wifi-ap.sh
+# Поднять wlan0
+ip link set wlan0 up
+
+# Запустить hostapd
+systemctl restart hostapd
 exit 0

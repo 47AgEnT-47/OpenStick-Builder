@@ -44,6 +44,7 @@ apt install -qqy --no-install-recommends \
     mobile-broadband-provider-info \
     iw \
     rfkill \
+    hostapd
 
 # Очистка
 apt autoremove -qqy
