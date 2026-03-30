@@ -40,9 +40,7 @@ echo "--- Packages size BEFORE cleanup ---"
 chroot "$MNT_DIR" dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n | awk '{printf "%.2f MB\t%s\n", $1/1024, $2}'
 
 chroot "$MNT_DIR" apt-get update -y
-chroot "$MNT_DIR" apt-get purge -y \
-    libconfig-dev libc6-dev linux-libc-dev \
-    libperl5.40 libc-l10n debconf-i18n || true
+chroot "$MNT_DIR" apt-get purge -y libconfig-dev libc6-dev linux-libc-dev libc-l10n debconf-i18n || true
 
 chroot "$MNT_DIR" apt-get autoremove -y --purge
 chroot "$MNT_DIR" apt-get clean
