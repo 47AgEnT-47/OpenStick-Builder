@@ -32,7 +32,7 @@ main
 
 # Поднять wlan0
 ip link set wlan0 up
-
+ip addr add 192.168.200.1 dev wlan0
 # Запустить hostapd
 systemctl restart hostapd
 exit 0
