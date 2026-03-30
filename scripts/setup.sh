@@ -23,7 +23,6 @@ apt install -qqy --no-install-recommends \
     linux-libc-dev \
     libconfig11 \
     locales \
-    dnsmasq \
     modemmanager \
     netcat-traditional \
     network-manager \
@@ -33,14 +32,11 @@ apt install -qqy --no-install-recommends \
     sudo \
     systemd-timesyncd \
     tzdata \
-    wireguard-tools \
     wpasupplicant \
     bash-completion \
     curl \
     ca-certificates \
     zram-tools \
-    bc \
-    nftables \
     mobile-broadband-provider-info \
     iw \
     rfkill \
@@ -77,7 +73,7 @@ EOF
 
 # Настройка journald
 cat <<EOF >> /etc/systemd/journald.conf
-SystemMaxUse=300M
+SystemMaxUse=100M
 SystemKeepFree=1G
 EOF
 
@@ -89,7 +85,6 @@ systemctl enable NetworkManager || true
 systemctl enable systemd-resolved || true
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-systemctl enable nftables
 systemctl enable ModemManager
 systemctl enable systemd-timesyncd
 systemctl enable wpa_supplicant

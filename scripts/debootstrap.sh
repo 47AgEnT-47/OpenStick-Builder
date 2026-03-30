@@ -49,7 +49,6 @@ mkdir -p "${CHROOT}/etc/systemd/system" \
          "${CHROOT}/lib/firmware/msm-firmware-loader"
 
 cp -a configs/system/* "${CHROOT}/etc/systemd/system/"
-cp configs/nftables.conf "${CHROOT}/etc/nftables.conf"
 cp configs/*.nmconnection "${CHROOT}/etc/NetworkManager/system-connections/"
 cp configs/99-custom.conf "${CHROOT}/etc/NetworkManager/conf.d/"
 cp -a configs/rc.local "${CHROOT}/etc/rc.local" 
