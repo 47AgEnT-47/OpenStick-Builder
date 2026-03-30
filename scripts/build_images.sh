@@ -70,6 +70,10 @@ rm -rf "$MNT_DIR/usr/include/"* \
 find "$MNT_DIR/usr/lib" -name "*.a" -delete
 find "$MNT_DIR/usr/lib" -name "pkgconfig" -type d -exec rm -rf {} +
 
+dd if=/dev/zero of="$MNT_DIR/zero.fill" bs=1M status=progress || true
+rm -f "$MNT_DIR/zero.fill"
+sync
+
 # --- РАЗМОНТИРОВАНИЕ ---
 # Сначала вложенные, потом корень
 for dir in run dev/pts dev sys proc; do
