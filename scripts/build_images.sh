@@ -95,6 +95,7 @@ shrink_raw rootfs.raw
 shrink_raw boot.raw
 
 # Итоги
+du -h files/rootfs.raw
 ls -lh rootfs.raw boot.raw
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
