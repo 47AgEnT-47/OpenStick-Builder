@@ -64,7 +64,7 @@ rm -rf "$MNT_DIR/usr/include/"* \
        "$MNT_DIR/var/log/"* \
        "$MNT_DIR/root/.cache" \
        "$MNT_DIR/tmp/"* \
-       "$MNTDIR/var/tmp/"*
+       "$MNT_DIR/var/tmp/"*
 
 # Удаление статических библиотек и специфических путей
 find "$MNT_DIR/usr/lib" -name "*.a" -delete
