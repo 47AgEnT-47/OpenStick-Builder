@@ -21,7 +21,6 @@ apt install -qqy --no-install-recommends \
     libconfig-dev \
     libc6-dev \
     linux-libc-dev \
-    dnsmasq \
     libconfig11 \
     locales \
     modemmanager \
@@ -44,7 +43,6 @@ apt install -qqy --no-install-recommends \
     mobile-broadband-provider-info \
     iw \
     rfkill \
-    hostapd
 
 # Очистка
 apt autoremove -qqy
@@ -90,7 +88,6 @@ systemctl enable NetworkManager || true
 systemctl enable systemd-resolved || true
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-systemctl enable dnsmasq
 systemctl enable nftables
 systemctl enable ModemManager
 systemctl enable systemd-timesyncd
