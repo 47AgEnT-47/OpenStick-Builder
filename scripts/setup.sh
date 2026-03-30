@@ -23,6 +23,7 @@ apt install -qqy --no-install-recommends \
     linux-libc-dev \
     libconfig11 \
     locales \
+    dnsmasq \
     modemmanager \
     netcat-traditional \
     network-manager \
