@@ -41,9 +41,8 @@ chroot "$MNT_DIR" dpkg-query -W -f='${Installed-Size}\t${Package}\n' | sort -n |
 
 chroot "$MNT_DIR" apt-get update -y
 chroot "$MNT_DIR" apt-get purge -y \
-    libconfig-dev libc6-dev linux-libc-dev gcc g++ make \
-    perl perl-modules-5.40 libperl5.40 \
-    libc-l10n debconf-i18n || true
+    libconfig-dev libc6-dev linux-libc-dev \
+    libperl5.40 libc-l10n debconf-i18n || true
 
 chroot "$MNT_DIR" apt-get autoremove -y --purge
 chroot "$MNT_DIR" apt-get clean
@@ -95,7 +94,7 @@ shrink_raw rootfs.raw
 shrink_raw boot.raw
 
 # Итоги
-du -h files/rootfs.raw
+du -h rootfs.raw
 ls -lh rootfs.raw boot.raw
 img2simg rootfs.raw files/rootfs.bin
 img2simg boot.raw files/boot.bin
