@@ -26,6 +26,7 @@ apt install -qqy --no-install-recommends \
     modemmanager \
     netcat-traditional \
     network-manager \
+    dnsmasq \
     openssh-server \
     qrtr-tools \
     rmtfs \
