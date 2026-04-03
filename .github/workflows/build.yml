@@ -69,5 +69,5 @@ jobs:
           TITLE="${{ steps.meta.outputs.human }} Latest"
 
           # Сначала пробуем создать, если не вышло (уже есть) — просто перезаливаем файл
-          gh release create "$TAG" --title "$TITLE" --prerelease "$FILE" 2>/dev/null || \
+          gh release create "$TAG" --title "$TITLE" "$FILE" 2>/dev/null || \
           gh release upload "$TAG" "$FILE" --clobber
